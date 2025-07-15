@@ -97,7 +97,7 @@ export default function HomeScreen() {
       const response = await GroqService.generatePlaylist({
         prompt: currentQuery,
         preferences: {
-          maxTracks: 15,
+          maxTracks: 30,
           explicit: true,
           energy: 'medium'
         }

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Modal,
   View,
@@ -6,12 +6,15 @@ import {
   TouchableOpacity,
   StyleSheet,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { GeneratedPlaylist, SuggestedTrack } from '@/types/Groq';
 import { TrackMatchingResponse } from '@/types/TrackMatching';
+import { PlaylistCreationService } from '@/services/PlaylistCreationAPI';
+import { useSpotifyAuth } from '@/hooks/useSpotifyAuth';
 
 interface QueryModalProps {
   visible: boolean;
@@ -34,6 +37,65 @@ export function QueryModal({
   trackMatches,
   matchingInProgress = false 
 }: QueryModalProps) {
+  const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
+  const { tokens } = useSpotifyAuth();
+
+  const handleCreatePlaylist = async () => {
+    if (!playlist || !trackMatches || !tokens?.access_token) {
+      Alert.alert(
+        'Cannot Create Playlist',
+        'Please ensure you are logged into Spotify and tracks have been matched.'
+      );
+      return;
+    }
+
+    setIsCreatingPlaylist(true);
+    
+    try {
+      console.log('🎵 Creating playlist on Spotify...');
+      
+      const result = await PlaylistCreationService.createPlaylist({
+        playlist,
+        trackMatches,
+        accessToken: tokens.access_token,
+        options: {
+          makePublic: false,
+          includeDescription: true,
+          onlyHighConfidence: false,
+          minConfidenceScore: 50,
+          maxTracks: 50,
+        }
+      });
+
+      if (result.success && result.spotifyPlaylist) {
+        Alert.alert(
+          'Playlist Created! 🎉',
+          `"${result.spotifyPlaylist.name}" has been added to your Spotify library with ${result.summary.tracksAdded} tracks.`,
+          [
+            {
+              text: 'Close',
+              onPress: onClose,
+            },
+          ]
+        );
+      } else {
+        Alert.alert(
+          'Playlist Creation Failed',
+          result.error || 'Something went wrong while creating your playlist.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error: unknown) {
+      console.error('❌ Playlist creation error:', error);
+      Alert.alert(
+        'Error',
+        'Failed to create playlist. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsCreatingPlaylist(false);
+    }
+  };
   return (
     <Modal
       animationType="slide"
@@ -110,6 +172,15 @@ export function QueryModal({
                     <ThemedText style={styles.trackCountText}>
                       {playlist.tracks.length} tracks
                     </ThemedText>
+                    {trackMatches && (
+                      <>
+                        <ThemedText style={styles.trackCountSeparator}>•</ThemedText>
+                        <Ionicons name="checkmark-circle" size={16} color="#333" />
+                        <ThemedText style={styles.trackCountText}>
+                          {trackMatches.summary.found} matched
+                        </ThemedText>
+                      </>
+                    )}
                   </View>
                 </View>
 
@@ -159,13 +230,43 @@ export function QueryModal({
               </TouchableOpacity>
               
               <TouchableOpacity 
-                style={[styles.actionButton, styles.primaryButton]}
-                onPress={() => console.log('Playlist creation initiated')}
+                style={[
+                  styles.actionButton, 
+                  styles.primaryButton,
+                  (isCreatingPlaylist || matchingInProgress || !trackMatches) && styles.disabledButton
+                ]}
+                onPress={handleCreatePlaylist}
+                disabled={isCreatingPlaylist || matchingInProgress || !trackMatches}
               >
-                <Ionicons name="add" size={18} color="white" />
-                <ThemedText style={[styles.actionButtonText, styles.primaryButtonText]}>
-                  Create Playlist
-                </ThemedText>
+                {isCreatingPlaylist ? (
+                  <>
+                    <Ionicons name="hourglass" size={18} color="white" />
+                    <ThemedText style={[styles.actionButtonText, styles.primaryButtonText]}>
+                      Creating...
+                    </ThemedText>
+                  </>
+                ) : matchingInProgress ? (
+                  <>
+                    <Ionicons name="search" size={18} color="white" />
+                    <ThemedText style={[styles.actionButtonText, styles.primaryButtonText]}>
+                      Finding Tracks...
+                    </ThemedText>
+                  </>
+                ) : !trackMatches ? (
+                  <>
+                    <Ionicons name="add" size={18} color="white" />
+                    <ThemedText style={[styles.actionButtonText, styles.primaryButtonText]}>
+                      Waiting...
+                    </ThemedText>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons name="add" size={18} color="white" />
+                    <ThemedText style={[styles.actionButtonText, styles.primaryButtonText]}>
+                      Create Playlist
+                    </ThemedText>
+                  </>
+                )}
               </TouchableOpacity>
             </View>
           )}
@@ -293,6 +394,11 @@ const styles = StyleSheet.create({
     color: '#333',
     fontWeight: '500',
   },
+  trackCountSeparator: {
+    color: '#999',
+    marginHorizontal: 4,
+    fontSize: 12,
+  },
 
   // Tracks Styles
   tracksContainer: {
@@ -393,6 +499,10 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: 'white',
+  },
+  disabledButton: {
+    backgroundColor: '#CCC',
+    borderColor: '#CCC',
   },
 
   // Matching Progress Styles
