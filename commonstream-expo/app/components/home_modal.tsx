@@ -81,7 +81,7 @@ export default function HomeModal({ visible, onClose }: HomeModalProps) {
                   <Ionicons 
                     name={option.icon} 
                     size={28} 
-                    color="#4A5568" 
+                    color="#3d3d3dff" 
                     style={styles.buttonIcon}
                   />
                   <View style={styles.textContainer}>
@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   bubbleText: {
-    color: '#4A5568',
+    color: '#3d3d3dff',
     fontSize: 18,
     fontWeight: '600',
     textAlign: 'left',
