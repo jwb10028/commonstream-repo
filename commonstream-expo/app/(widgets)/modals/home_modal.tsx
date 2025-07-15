@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
 interface HomeModalProps {
   visible: boolean;
@@ -24,6 +25,7 @@ const BOTTOM_SHEET_MIN_HEIGHT = 100;
 export default function HomeModal({ visible, onClose }: HomeModalProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const animatedHeight = useRef(new Animated.Value(BOTTOM_SHEET_MIN_HEIGHT)).current;
+  const router = useRouter();
 
   const navigationOptions = [
     { name: 'Stream Mix', id: 'stream-mix', icon: 'play-circle' as const, description: 'Curated playlists & mixes' },
@@ -46,7 +48,14 @@ export default function HomeModal({ visible, onClose }: HomeModalProps) {
 
   const handleNavigation = (optionName: string, optionId: string) => {
     console.log(`Navigating to ${optionName} (${optionId})`);
-    setIsExpanded(false);
+    // setIsExpanded(false);
+    // onClose(); // Close the modal first
+    
+    // Navigate based on the option selected
+    if (optionId === 'settings') {
+      router.push('/(screens)/settings');
+    }
+    // Add more navigation cases here as you implement other screens
   };
 
   const toggleExpanded = () => {
