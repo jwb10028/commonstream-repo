@@ -33,36 +33,43 @@ export default function Glow() {
 
   return (
     <View style={styles.container}>
-      <Animated.View
-        style={[
-          styles.sphere,
-          {
-            backgroundColor: backgroundColor,
-          },
-        ]}
-      />
+      {/* Main sphere with blur */}
+      <BlurView intensity={80} style={styles.sphereBlurContainer}>
+        <Animated.View
+          style={[
+            styles.sphere,
+            {
+              backgroundColor: backgroundColor,
+            },
+          ]}
+        />
+      </BlurView>
       
       {/* Additional blur layers for enhanced soft glow */}
-      <Animated.View
-        style={[
-          styles.blurLayer1,
-          {
-            backgroundColor: backgroundColor,
-          },
-        ]}
-      />
+      <BlurView intensity={60} style={styles.blurLayer1Container}>
+        <Animated.View
+          style={[
+            styles.blurLayer1,
+            {
+              backgroundColor: backgroundColor,
+            },
+          ]}
+        />
+      </BlurView>
       
-      <Animated.View
-        style={[
-          styles.blurLayer2,
-          {
-            backgroundColor: backgroundColor,
-          },
-        ]}
-      />
+      <BlurView intensity={40} style={styles.blurLayer2Container}>
+        <Animated.View
+          style={[
+            styles.blurLayer2,
+            {
+              backgroundColor: backgroundColor,
+            },
+          ]}
+        />
+      </BlurView>
       
       {/* Blur overlay for soft edge falloff */}
-      <BlurView intensity={300} style={styles.blurOverlay} />
+      <BlurView intensity={20} style={styles.blurOverlay} />
     </View>
   );
 }
@@ -76,26 +83,48 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: -1,
+    zIndex: 0, // Changed from -1 to 0 to prevent hiding behind content
+    pointerEvents: 'none', // Allow touches to pass through
   },
-  sphere: {
+  sphereBlurContainer: {
     position: 'absolute',
     width: Math.min(width, height) * 1.8,
     height: Math.min(width, height) * 1.8,
     borderRadius: (Math.min(width, height) * 1.8) / 2,
+    overflow: 'hidden',
+  },
+  sphere: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    borderRadius: (Math.min(width, height) * 1.8) / 2,
     opacity: 0.4,
   },
-  blurLayer1: {
+  blurLayer1Container: {
     position: 'absolute',
     width: Math.min(width, height) * 2.4,
     height: Math.min(width, height) * 2.4,
     borderRadius: (Math.min(width, height) * 2.4) / 2,
+    overflow: 'hidden',
+  },
+  blurLayer1: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    borderRadius: (Math.min(width, height) * 2.4) / 2,
     opacity: 0.2,
   },
-  blurLayer2: {
+  blurLayer2Container: {
     position: 'absolute',
     width: Math.min(width, height) * 3.0,
     height: Math.min(width, height) * 3.0,
+    borderRadius: (Math.min(width, height) * 3.0) / 2,
+    overflow: 'hidden',
+  },
+  blurLayer2: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
     borderRadius: (Math.min(width, height) * 3.0) / 2,
     opacity: 0.1,
   },
@@ -105,6 +134,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    zIndex: 1,
+    zIndex: -1, // Moved blur overlay behind the glow layers
   },
 });

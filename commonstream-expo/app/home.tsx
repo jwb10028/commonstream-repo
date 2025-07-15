@@ -136,6 +136,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     maxWidth: 330, // Increased from 300 to make query box 10% wider
     width: '100%',
+    zIndex: 1, // Ensure content appears above the glow
   },
   welcomeText: {
     marginBottom: 20,

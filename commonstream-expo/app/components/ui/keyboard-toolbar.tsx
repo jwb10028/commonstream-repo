@@ -54,6 +54,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 0, // Removed top border
     height: 53, // Increased from 44 to make it 20% taller
     width: '100%',
+    zIndex: 999, // Same high z-index as HomeModal to appear above all content
   },
   leftSection: {
     flex: 1,
