@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, TextInput, TouchableOpacity, Keyboard, KeyboardAvoidingView, Platform } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import HomeModal from './components/home_modal';
-import Glow from './components/ui/glow';
-import Transport from './components/ui/transport';
-import KeyboardToolbar from './components/ui/keyboard-toolbar';
+import HomeModal from './(widgets)/modals/home_modal';
+import Glow from './(widgets)/ui/glow';
+import Transport from './(widgets)/ui/transport';
+import KeyboardToolbar from './(widgets)/ui/keyboard-toolbar';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColor } from '@/hooks/useThemeColor';
 
