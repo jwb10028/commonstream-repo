@@ -70,6 +70,8 @@ export default function HomeModal({ visible, onClose }: HomeModalProps) {
       router.push('/(screens)/library');
     } else if (optionId === 'discover') {
       router.push('/(screens)/discover');
+    } else if (optionId === 'stream-mix') {
+      router.push('/(screens)/stream');
     }
     // Add more navigation cases here as you implement other screens
   };

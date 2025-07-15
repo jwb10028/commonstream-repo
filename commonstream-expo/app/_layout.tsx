@@ -52,6 +52,15 @@ function AppContent() {
             headerTintColor: colorScheme === 'dark' ? '#fff' : '#000',
           }} 
         />
+        <Stack.Screen 
+          name="(screens)/stream" 
+          options={{ 
+            headerShown: true,
+            headerTitle: "",
+            headerBackTitle: "",
+            headerTintColor: colorScheme === 'dark' ? '#fff' : '#000',
+          }} 
+        />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="auto" />

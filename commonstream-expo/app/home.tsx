@@ -5,7 +5,7 @@ import { ThemedView } from '@/components/ThemedView';
 import HomeModal from './(widgets)/modals/home_modal';
 import { QueryModal } from './(widgets)/modals/query_modal';
 import Glow from './(widgets)/ui/glow';
-import Transport from './(widgets)/ui/transport';
+import Transport from './(widgets)/ui/home-transport';
 import KeyboardToolbar from './(widgets)/ui/keyboard-toolbar';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColor } from '@/hooks/useThemeColor';
