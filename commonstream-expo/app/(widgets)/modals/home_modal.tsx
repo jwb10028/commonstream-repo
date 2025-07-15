@@ -12,6 +12,7 @@ import {
 import { ThemedText } from '@/components/ThemedText';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 interface HomeModalProps {
   visible: boolean;
@@ -26,6 +27,15 @@ export default function HomeModal({ visible, onClose }: HomeModalProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const animatedHeight = useRef(new Animated.Value(BOTTOM_SHEET_MIN_HEIGHT)).current;
   const router = useRouter();
+  
+  // Theme colors
+  const backgroundColor = useThemeColor({}, 'background');
+  const textColor = useThemeColor({}, 'text');
+  const iconColor = useThemeColor({}, 'icon');
+  const tintColor = useThemeColor({}, 'tint');
+
+  // Create dynamic styles
+  const styles = createStyles(backgroundColor, textColor, iconColor, tintColor);
 
   const navigationOptions = [
     { name: 'Stream Mix', id: 'stream-mix', icon: 'play-circle' as const, description: 'Curated playlists & mixes' },
@@ -67,10 +77,10 @@ export default function HomeModal({ visible, onClose }: HomeModalProps) {
   if (!visible) return null;
 
   return (
-    <Animated.View style={[styles.bottomSheet, { height: animatedHeight }]}>
+    <Animated.View style={[styles.bottomSheet, { height: animatedHeight, backgroundColor }]}>
       {/* Handle bar */}
       <TouchableOpacity style={styles.handle} onPress={toggleExpanded}>
-        <View style={styles.handleBar} />
+        <View style={[styles.handleBar, { backgroundColor: iconColor + '66' }]} />
       </TouchableOpacity>
 
       {/* Content - only show when expanded */}
@@ -84,7 +94,7 @@ export default function HomeModal({ visible, onClose }: HomeModalProps) {
             {navigationOptions.map((option, index) => (
               <TouchableOpacity
                 key={option.id}
-                style={styles.bubble}
+                style={[styles.bubble, { backgroundColor: backgroundColor === '#fff' ? '#F7FAFC' : '#3A3A3A', borderColor: iconColor + '33' }]}
                 onPress={() => handleNavigation(option.name, option.id)}
                 activeOpacity={0.8}
               >
@@ -92,12 +102,12 @@ export default function HomeModal({ visible, onClose }: HomeModalProps) {
                   <Ionicons 
                     name={option.icon} 
                     size={28} 
-                    color="#3d3d3dff" 
+                    color={textColor} 
                     style={styles.buttonIcon}
                   />
                   <View style={styles.textContainer}>
-                    <Text style={styles.bubbleText}>{option.name}</Text>
-                    <Text style={styles.descriptionText}>{option.description}</Text>
+                    <Text style={[styles.bubbleText, { color: textColor }]}>{option.name}</Text>
+                    <Text style={[styles.descriptionText, { color: iconColor }]}>{option.description}</Text>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -109,16 +119,17 @@ export default function HomeModal({ visible, onClose }: HomeModalProps) {
   );
 }
 
-const styles = StyleSheet.create({
+// Create styles function to access theme colors
+const createStyles = (backgroundColor: string, textColor: string, iconColor: string, tintColor: string) => StyleSheet.create({
   bottomSheet: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'white',
+    backgroundColor: backgroundColor,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    shadowColor: '#000',
+    shadowColor: textColor,
     shadowOffset: {
       width: 0,
       height: -2,
@@ -136,7 +147,7 @@ const styles = StyleSheet.create({
   handleBar: {
     width: 40,
     height: 4,
-    backgroundColor: '#D1D5DB',
+    backgroundColor: iconColor,
     borderRadius: 2,
   },
   content: {
@@ -158,10 +169,10 @@ const styles = StyleSheet.create({
     paddingVertical: 32,
     paddingHorizontal: 20,
     borderRadius: 12,
-    backgroundColor: '#F7FAFC',
+    backgroundColor: tintColor,
     alignItems: 'flex-start',
     justifyContent: 'center',
-    shadowColor: '#000',
+    shadowColor: textColor,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -170,7 +181,7 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 3,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: iconColor,
   },
   buttonContent: {
     flexDirection: 'row',
@@ -184,14 +195,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   bubbleText: {
-    color: '#3d3d3dff',
+    color: textColor,
     fontSize: 18,
     fontWeight: '600',
     textAlign: 'left',
     marginBottom: 2,
   },
   descriptionText: {
-    color: '#6B7280',
+    color: iconColor,
     fontSize: 14,
     fontWeight: '400',
     textAlign: 'left',

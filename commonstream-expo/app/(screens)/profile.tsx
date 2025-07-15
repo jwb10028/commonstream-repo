@@ -5,10 +5,22 @@ import { ThemedView } from '@/components/ThemedView';
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useThemeColor } from '@/hooks/useThemeColor';
+import { useTheme } from '@/context/ThemeContext';
 
 export default function ProfileScreen() {
   const { user, logout, isAuthenticated } = useAuth();
   const router = useRouter();
+  
+  // Theme colors
+  const backgroundColor = useThemeColor({}, 'background');
+  const textColor = useThemeColor({}, 'text');
+  const iconColor = useThemeColor({}, 'icon');
+  const tintColor = useThemeColor({}, 'tint');
+  
+  // Get current theme
+  const { colorScheme } = useTheme();
+  const isLightMode = colorScheme === 'light';
 
   const handleLogout = async () => {
     try {
@@ -39,15 +51,15 @@ export default function ProfileScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Profile Header - Image and Info Side by Side */}
         <View style={styles.profileHeader}>
-          <View style={styles.profileImageContainer}>
+          <View style={[styles.profileImageContainer, { borderColor: iconColor + '33' }]}>
             {user.images && user.images.length > 0 ? (
               <Image 
                 source={{ uri: user.images[0].url }} 
-                style={styles.profileImage}
+                style={[styles.profileImage, { borderColor: iconColor + '33' }]}
               />
             ) : (
-              <View style={styles.defaultProfileImage}>
-                <Ionicons name="person" size={40} color="#666" />
+              <View style={[styles.defaultProfileImage, { backgroundColor: backgroundColor, borderColor: iconColor + '33' }]}>
+                <Ionicons name="person" size={40} color={iconColor} />
               </View>
             )}
           </View>
@@ -64,21 +76,21 @@ export default function ProfileScreen() {
         </View>
 
         {/* Stats */}
-        <View style={styles.statsContainer}>
+        <View style={[styles.statsContainer, { backgroundColor: backgroundColor, borderColor: iconColor + '33' }]}>
           <View style={styles.statItem}>
-            <ThemedText type="subtitle" style={styles.statNumber}>
+            <ThemedText type="subtitle" style={[styles.statNumber, { color: textColor }]}>
               {user.followers?.total || 0}
             </ThemedText>
-            <ThemedText style={styles.statLabel}>
+            <ThemedText style={[styles.statLabel, { color: iconColor }]}>
               Followers
             </ThemedText>
           </View>
           
           <View style={styles.statItem}>
-            <ThemedText type="subtitle" style={styles.statNumber}>
+            <ThemedText type="subtitle" style={[styles.statNumber, { color: textColor }]}>
               {user.product === 'premium' ? 'Premium' : 'Free'}
             </ThemedText>
-            <ThemedText style={styles.statLabel}>
+            <ThemedText style={[styles.statLabel, { color: iconColor }]}>
               Account Type
             </ThemedText>
           </View>
@@ -86,14 +98,18 @@ export default function ProfileScreen() {
 
         {/* Account Details */}
         <View style={styles.detailsContainer}>
-          <View style={styles.detailItem}>
-            <ThemedText style={styles.detailLabel}>User ID:</ThemedText>
-            <ThemedText style={styles.detailValue}>{user.id}</ThemedText>
+          <View style={[styles.detailItem, { backgroundColor: backgroundColor, borderColor: iconColor + '33' }]}>
+            <ThemedText style={[styles.detailLabel, { color: iconColor }]}>User ID:</ThemedText>
+            <ThemedText style={[styles.detailValue, { color: textColor }]}>
+              {user.id}
+            </ThemedText>
           </View>
           
-          <View style={styles.detailItem}>
-            <ThemedText style={styles.detailLabel}>Country:</ThemedText>
-            <ThemedText style={styles.detailValue}>{user.country}</ThemedText>
+          <View style={[styles.detailItem, { backgroundColor: backgroundColor, borderColor: iconColor + '33' }]}>
+            <ThemedText style={[styles.detailLabel, { color: iconColor }]}>Country:</ThemedText>
+            <ThemedText style={[styles.detailValue, { color: textColor }]}>
+              {user.country}
+            </ThemedText>
           </View>
         </View>
 
@@ -101,9 +117,12 @@ export default function ProfileScreen() {
         <View style={styles.spacer} />
 
         {/* Logout Button */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={20} color="black" style={styles.logoutIcon} />
-          <ThemedText style={styles.logoutButtonText}>
+        <TouchableOpacity 
+          style={[styles.logoutButton, { backgroundColor: backgroundColor === '#fff' ? 'white' : '#3A3A3A', borderColor: iconColor + '33' }]} 
+          onPress={handleLogout}
+        >
+          <Ionicons name="log-out-outline" size={20} color={textColor} style={styles.logoutIcon} />
+          <ThemedText style={[styles.logoutButtonText, { color: textColor }]}>
             Logout
           </ThemedText>
         </TouchableOpacity>
@@ -151,17 +170,14 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 40,
     borderWidth: 2,
-    borderColor: '#e0e0e0',
   },
   defaultProfileImage: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#f5f5f5',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#e0e0e0',
   },
   userInfo: {
     alignItems: 'flex-start',
@@ -216,24 +232,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: '#f8f8f8',
     borderRadius: 8,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
   },
   detailLabel: {
     fontWeight: '500',
     opacity: 0.8,
-    color: '#333',
   },
   detailValue: {
     fontWeight: '600',
-    color: '#000',
   },
   logoutButton: {
     flexDirection: 'row',
-    backgroundColor: 'white',
     paddingVertical: 15,
     paddingHorizontal: 30,
     borderRadius: 12,
@@ -242,13 +253,11 @@ const styles = StyleSheet.create({
     marginTop: 0,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
   },
   logoutIcon: {
     marginRight: 8,
   },
   logoutButtonText: {
-    color: 'black',
     fontSize: 16,
     fontWeight: '600',
   },

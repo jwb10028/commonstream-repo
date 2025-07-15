@@ -7,11 +7,16 @@ import { useAuth } from '@/context/AuthContext';
 import { useSpotifyAuth } from '@/hooks/useSpotifyAuth';
 import { Ionicons } from '@expo/vector-icons';
 import Glow from '@/app/(widgets)/ui/glow';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function AuthScreen() {
   const router = useRouter();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { login, isLoading: spotifyLoading, error } = useSpotifyAuth();
+  
+  // Theme colors
+  const tintColor = useThemeColor({}, 'tint');
+  const textColor = useThemeColor({}, 'text');
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -32,7 +37,7 @@ export default function AuthScreen() {
       <ThemedView style={styles.container}>
         <Glow />
         <View style={styles.loadingContent}>
-          <ActivityIndicator size="large" color="#1DB954" />
+          <ActivityIndicator size="large" color={tintColor} />
           <ThemedText style={styles.loadingText}>Loading...</ThemedText>
         </View>
       </ThemedView>
@@ -115,7 +120,7 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     borderRadius: 12, // More square, less rounded
     minWidth: 320,
-    shadowColor: '#000',
+    shadowColor: 'rgba(0,0,0,0.1)',
     shadowOffset: {
       width: 0,
       height: 4,

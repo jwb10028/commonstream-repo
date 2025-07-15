@@ -198,21 +198,21 @@ export default function HomeScreen() {
           {/* Circular Action Buttons */}
           <View style={styles.buttonRow}>
             <TouchableOpacity 
-              style={[styles.circularButton, { backgroundColor: 'white' }]}
+              style={[styles.circularButton, { backgroundColor: backgroundColor }]}
               onPress={handleVoiceActivation}
             >
               <Ionicons name="mic" size={24} color={borderColor} />
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={[styles.circularButton, { backgroundColor: 'white' }]}
+              style={[styles.circularButton, { backgroundColor: backgroundColor }]}
               onPress={handleLoopbackListening}
             >
               <Ionicons name="repeat" size={24} color={borderColor} />
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={[styles.circularButton, { backgroundColor: 'white' }]}
+              style={[styles.circularButton, { backgroundColor: backgroundColor }]}
               onPress={handleAddMedia}
             >
               <Ionicons name="add-circle" size={24} color={borderColor} />
@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
     minHeight: 64, // Reduced from 80 to make it 20% shorter
     flexDirection: 'row',
     alignItems: 'flex-end',
-    shadowColor: '#000',
+    shadowColor: 'rgba(0,0,0,0.1)',
     shadowOffset: {
       width: 0,
       height: 4,
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: 'rgba(0,0,0,0.1)',
     shadowOffset: {
       width: 0,
       height: 2,

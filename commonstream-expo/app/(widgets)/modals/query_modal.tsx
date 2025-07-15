@@ -15,6 +15,7 @@ import { GeneratedPlaylist, SuggestedTrack } from '@/types/Groq';
 import { TrackMatchingResponse } from '@/types/TrackMatching';
 import { PlaylistCreationService } from '@/services/PlaylistCreationAPI';
 import { useSpotifyAuth } from '@/hooks/useSpotifyAuth';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 interface QueryModalProps {
   visible: boolean;
@@ -39,6 +40,12 @@ export function QueryModal({
 }: QueryModalProps) {
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
   const { tokens } = useSpotifyAuth();
+  
+  // Theme colors
+  const backgroundColor = useThemeColor({}, 'background');
+  const textColor = useThemeColor({}, 'text');
+  const iconColor = useThemeColor({}, 'icon');
+  const tintColor = useThemeColor({}, 'tint');
 
   const handleCreatePlaylist = async () => {
     if (!playlist || !trackMatches || !tokens?.access_token) {
@@ -104,32 +111,32 @@ export function QueryModal({
       onRequestClose={onClose}
     >
       <View style={styles.modalOverlay}>
-        <ThemedView style={styles.modalContent}>
+        <ThemedView style={[styles.modalContent, { backgroundColor }]}>
           {/* Header */}
-          <View style={styles.header}>
+          <View style={[styles.header, { backgroundColor, borderBottomColor: iconColor + '33' }]}>
             <View style={styles.headerLeft}>
-              <ThemedText type="title" style={styles.title}>
+              <ThemedText type="title" style={[styles.title, { color: textColor }]}>
                 {loading ? 'Generating...' : 'Recommendations'}
               </ThemedText>
               {query && (
-                <ThemedText style={styles.queryText}>
+                <ThemedText style={[styles.queryText, { color: iconColor }]}>
                   "{query}"
                 </ThemedText>
               )}
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color="#666" />
+              <Ionicons name="close" size={24} color={iconColor} />
             </TouchableOpacity>
           </View>
 
           {/* Content */}
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          <ScrollView style={[styles.content, { backgroundColor }]} showsVerticalScrollIndicator={false}>
             {(loading || matchingInProgress) && (
-              <View style={styles.loadingContainer}>
+              <View style={[styles.loadingContainer, { backgroundColor }]}>
                 <View style={styles.loadingIcon}>
                   <ThemedText style={styles.loadingEmoji}>🎵</ThemedText>
                 </View>
-                <ThemedText style={styles.loadingText}>
+                <ThemedText style={[styles.loadingText, { color: iconColor }]}>
                   {loading 
                     ? "AI is curating your perfect playlist..."
                     : "Finding tracks on Spotify..."
@@ -160,22 +167,22 @@ export function QueryModal({
                 )}
 
                 {/* Playlist Info */}
-                <View style={styles.playlistInfo}>
-                  <ThemedText type="subtitle" style={styles.playlistName}>
+                <View style={[styles.playlistInfo, { backgroundColor: backgroundColor === '#fff' ? '#F9F9F9' : '#2A2A2A', borderColor: iconColor + '33' }]}>
+                  <ThemedText type="subtitle" style={[styles.playlistName, { color: textColor }]}>
                     {playlist.name}
                   </ThemedText>
-                  <ThemedText style={styles.playlistDescription}>
+                  <ThemedText style={[styles.playlistDescription, { color: iconColor }]}>
                     {playlist.description}
                   </ThemedText>
                   <View style={styles.trackCount}>
-                    <Ionicons name="musical-notes" size={16} color="#666" />
+                    <Ionicons name="musical-notes" size={16} color={iconColor} />
                     <ThemedText style={styles.trackCountText}>
                       {playlist.tracks.length} tracks
                     </ThemedText>
                     {trackMatches && (
                       <>
                         <ThemedText style={styles.trackCountSeparator}>•</ThemedText>
-                        <Ionicons name="checkmark-circle" size={16} color="#333" />
+                        <Ionicons name="checkmark-circle" size={16} color={textColor} />
                         <ThemedText style={styles.trackCountText}>
                           {trackMatches.summary.found} matched
                         </ThemedText>
@@ -187,23 +194,23 @@ export function QueryModal({
                 {/* Tracks List */}
                 <View style={styles.tracksContainer}>
                   {playlist.tracks.map((track: SuggestedTrack, index: number) => (
-                    <View key={index} style={styles.trackItem}>
-                      <View style={styles.trackNumber}>
-                        <ThemedText style={styles.trackNumberText}>
+                    <View key={index} style={[styles.trackItem, { backgroundColor, borderColor: iconColor + '33' }]}>
+                      <View style={[styles.trackNumber, { backgroundColor, borderColor: iconColor + '33' }]}>
+                        <ThemedText style={[styles.trackNumberText, { color: textColor }]}>
                           {index + 1}
                         </ThemedText>
                       </View>
                       
                       <View style={styles.trackInfo}>
-                        <ThemedText type="defaultSemiBold" style={styles.trackTitle}>
+                        <ThemedText type="defaultSemiBold" style={[styles.trackTitle, { color: textColor }]}>
                           {track.title}
                         </ThemedText>
-                        <ThemedText style={styles.trackArtist}>
+                        <ThemedText style={[styles.trackArtist, { color: iconColor }]}>
                           by {track.artist}
                         </ThemedText>
                         {track.reasoning && (
                           <View style={styles.reasoningContainer}>
-                            <Ionicons name="bulb" size={12} color="#666" />
+                            <Ionicons name="bulb" size={12} color={iconColor} />
                             <ThemedText style={styles.trackReasoning}>
                               {track.reasoning}
                             </ThemedText>
@@ -212,7 +219,7 @@ export function QueryModal({
                       </View>
 
                       <TouchableOpacity style={styles.trackAction}>
-                        <Ionicons name="play-circle" size={24} color="#666" />
+                        <Ionicons name="play-circle" size={24} color={iconColor} />
                       </TouchableOpacity>
                     </View>
                   ))}
@@ -223,17 +230,18 @@ export function QueryModal({
 
           {/* Footer Actions */}
           {playlist && !loading && (
-            <View style={styles.footer}>
-              <TouchableOpacity style={styles.actionButton} onPress={onClose}>
-                <Ionicons name="close" size={18} color="#666" />
-                <ThemedText style={styles.actionButtonText}>Close</ThemedText>
+            <View style={[styles.footer, { backgroundColor, borderTopColor: iconColor + '33' }]}>
+              <TouchableOpacity style={[styles.actionButton, { backgroundColor, borderColor: iconColor + '66' }]} onPress={onClose}>
+                <Ionicons name="close" size={18} color={iconColor} />
+                <ThemedText style={[styles.actionButtonText, { color: textColor }]}>Close</ThemedText>
               </TouchableOpacity>
               
               <TouchableOpacity 
                 style={[
                   styles.actionButton, 
                   styles.primaryButton,
-                  (isCreatingPlaylist || matchingInProgress || !trackMatches) && styles.disabledButton
+                  { backgroundColor: textColor, borderColor: textColor },
+                  (isCreatingPlaylist || matchingInProgress || !trackMatches) && [styles.disabledButton, { backgroundColor: iconColor, borderColor: iconColor }]
                 ]}
                 onPress={handleCreatePlaylist}
                 disabled={isCreatingPlaylist || matchingInProgress || !trackMatches}
@@ -289,7 +297,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     overflow: 'hidden',
-    backgroundColor: 'white',
   },
   header: {
     flexDirection: 'row',
@@ -298,8 +305,6 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
-    backgroundColor: 'white',
   },
   headerLeft: {
     flex: 1,
@@ -307,11 +312,9 @@ const styles = StyleSheet.create({
   },
   title: {
     marginBottom: 4,
-    color: 'black',
   },
   queryText: {
     fontSize: 14,
-    color: '#666',
     fontStyle: 'italic',
   },
   closeButton: {
@@ -321,14 +324,12 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 20,
-    backgroundColor: 'white',
   },
   
   // Loading Styles
   loadingContainer: {
     alignItems: 'center',
     paddingVertical: 60,
-    backgroundColor: 'white',
   },
   loadingIcon: {
     marginBottom: 16,
@@ -338,7 +339,6 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: '#666',
     marginBottom: 20,
   },
 
@@ -359,11 +359,9 @@ const styles = StyleSheet.create({
   },
   errorTitle: {
     fontWeight: '600',
-    color: '#333',
     marginBottom: 4,
   },
   errorText: {
-    color: '#666',
     lineHeight: 18,
   },
 
@@ -371,17 +369,13 @@ const styles = StyleSheet.create({
   playlistInfo: {
     marginBottom: 24,
     padding: 16,
-    backgroundColor: '#F9F9F9',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E5E5',
   },
   playlistName: {
     marginBottom: 8,
-    color: '#000',
   },
   playlistDescription: {
-    color: '#666',
     lineHeight: 20,
     marginBottom: 12,
   },
@@ -391,11 +385,9 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   trackCountText: {
-    color: '#333',
     fontWeight: '500',
   },
   trackCountSeparator: {
-    color: '#999',
     marginHorizontal: 4,
     fontSize: 12,
   },
@@ -408,7 +400,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     padding: 12,
-    backgroundColor: 'white',
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -416,21 +407,17 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
     borderWidth: 1,
-    borderColor: '#E5E5E5',
   },
   trackNumber: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: 'white',
     borderWidth: 1,
-    borderColor: '#E5E5E5',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   trackNumberText: {
-    color: '#333',
     fontWeight: 'bold',
     fontSize: 12,
   },
@@ -440,10 +427,8 @@ const styles = StyleSheet.create({
   trackTitle: {
     marginBottom: 2,
     lineHeight: 18,
-    color: '#000',
   },
   trackArtist: {
-    color: '#666',
     marginBottom: 6,
     fontSize: 14,
   },
@@ -470,10 +455,8 @@ const styles = StyleSheet.create({
     padding: 32,
     paddingTop: 28,
     borderTopWidth: 1,
-    borderTopColor: '#E5E5E5',
     gap: 12,
     minHeight: 100,
-    backgroundColor: 'white',
   },
   actionButton: {
     flex: 1,
@@ -484,25 +467,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#DDD',
     gap: 6,
-    backgroundColor: 'white',
   },
   primaryButton: {
-    backgroundColor: '#000',
-    borderColor: '#000',
+    // backgroundColor and borderColor set dynamically
   },
   actionButtonText: {
     fontWeight: '600',
     fontSize: 14,
-    color: '#333',
   },
   primaryButtonText: {
     color: 'white',
   },
   disabledButton: {
-    backgroundColor: '#CCC',
-    borderColor: '#CCC',
+    // backgroundColor and borderColor set dynamically
   },
 
   // Matching Progress Styles

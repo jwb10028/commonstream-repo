@@ -6,9 +6,42 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { AuthProvider } from '@/context/AuthContext';
+import { ThemeProvider as CustomThemeProvider, useTheme } from '@/context/ThemeContext';
+
+function AppContent() {
+  const { colorScheme } = useTheme();
+  
+  return (
+    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <Stack>
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="home" options={{ headerShown: false }} />
+        <Stack.Screen 
+          name="(screens)/settings" 
+          options={{ 
+            headerShown: true,
+            headerTitle: "",
+            headerBackTitle: "",
+            headerTintColor: colorScheme === 'dark' ? '#fff' : '#000',
+          }} 
+        />
+        <Stack.Screen 
+          name="(screens)/profile" 
+          options={{ 
+            headerShown: true,
+            headerTitle: "",
+            headerBackTitle: "",
+            headerTintColor: colorScheme === 'dark' ? '#fff' : '#000',
+          }} 
+        />
+        <Stack.Screen name="+not-found" />
+      </Stack>
+      <StatusBar style="auto" />
+    </ThemeProvider>
+  );
+}
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
   const [loaded] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
@@ -20,32 +53,9 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <Stack>
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="home" options={{ headerShown: false }} />
-          <Stack.Screen 
-            name="(screens)/settings" 
-            options={{ 
-              headerShown: true,
-              headerTitle: "",
-              headerBackTitle: "",
-              headerTintColor: colorScheme === 'dark' ? '#fff' : '#000',
-            }} 
-          />
-          <Stack.Screen 
-            name="(screens)/profile" 
-            options={{ 
-              headerShown: true,
-              headerTitle: "",
-              headerBackTitle: "",
-              headerTintColor: colorScheme === 'dark' ? '#fff' : '#000',
-            }} 
-          />
-          <Stack.Screen name="+not-found" />
-        </Stack>
-        <StatusBar style="auto" />
-      </ThemeProvider>
+      <CustomThemeProvider>
+        <AppContent />
+      </CustomThemeProvider>
     </AuthProvider>
   );
 }
