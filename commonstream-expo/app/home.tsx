@@ -1,19 +1,35 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, TextInput, TouchableOpacity, Keyboard, KeyboardAvoidingView, Platform } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import HomeModal from './components/home_modal';
 import Glow from './components/ui/glow';
 import Transport from './components/ui/transport';
+import KeyboardToolbar from './components/ui/keyboard-toolbar';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function HomeScreen() {
   const [queryText, setQueryText] = useState('');
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const tintColor = useThemeColor({}, 'tint');
   const borderColor = useThemeColor({}, 'text');
   const placeholderColor = useThemeColor({}, 'tabIconDefault');
   const backgroundColor = useThemeColor({}, 'background');
+
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
+      setIsKeyboardVisible(true);
+    });
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+      setIsKeyboardVisible(false);
+    });
+
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
 
   const handleVoiceActivation = () => {
     console.log('Voice activation button pressed');
@@ -30,72 +46,87 @@ export default function HomeScreen() {
   const handleQuerySubmit = () => {
     console.log('Query submitted:', queryText);
     setQueryText(''); // Clear the text after submission
+    Keyboard.dismiss(); // Close the keyboard after submission
   };
 
   return (
-    <ThemedView style={styles.container}>
-      <Glow />
-      <View style={styles.content}>
-        {/* Audio Transport Controls */}
-        <View style={styles.transportWrapper}>
-          <Transport />
+    <KeyboardAvoidingView 
+      style={styles.container} 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ThemedView style={styles.mainContent}>
+        <Glow />
+        <View style={styles.content}>
+          {/* Audio Transport Controls */}
+          <View style={styles.transportWrapper}>
+            <Transport />
+          </View>
+          
+          {/* LLM-style Query Box */}
+          <View style={[styles.queryContainer, { borderColor, backgroundColor }]}>
+            <TextInput
+              style={[styles.queryInput, { color: borderColor }]}
+              placeholder="Ask me anything..."
+              placeholderTextColor={placeholderColor}
+              value={queryText}
+              onChangeText={setQueryText}
+              onSubmitEditing={handleQuerySubmit}
+              multiline
+              numberOfLines={3}
+            />
+            <TouchableOpacity 
+              style={styles.submitButton}
+              onPress={handleQuerySubmit}
+            >
+              <Ionicons name="paper-plane" size={20} color={borderColor} />
+            </TouchableOpacity>
+          </View>
+          
+          {/* Circular Action Buttons */}
+          <View style={styles.buttonRow}>
+            <TouchableOpacity 
+              style={[styles.circularButton, { backgroundColor: 'white' }]}
+              onPress={handleVoiceActivation}
+            >
+              <Ionicons name="mic" size={24} color={borderColor} />
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.circularButton, { backgroundColor: 'white' }]}
+              onPress={handleLoopbackListening}
+            >
+              <Ionicons name="repeat" size={24} color={borderColor} />
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.circularButton, { backgroundColor: 'white' }]}
+              onPress={handleAddMedia}
+            >
+              <Ionicons name="add-circle" size={24} color={borderColor} />
+            </TouchableOpacity>
+          </View>
         </View>
         
-        {/* LLM-style Query Box */}
-        <View style={[styles.queryContainer, { borderColor, backgroundColor }]}>
-          <TextInput
-            style={[styles.queryInput, { color: borderColor }]}
-            placeholder="Ask me anything..."
-            placeholderTextColor={placeholderColor}
-            value={queryText}
-            onChangeText={setQueryText}
-            onSubmitEditing={handleQuerySubmit}
-            multiline
-            numberOfLines={3}
-          />
-          <TouchableOpacity 
-            style={styles.submitButton}
-            onPress={handleQuerySubmit}
-          >
-            <Ionicons name="paper-plane" size={20} color={borderColor} />
-          </TouchableOpacity>
-        </View>
-        
-        {/* Circular Action Buttons */}
-        <View style={styles.buttonRow}>
-          <TouchableOpacity 
-            style={[styles.circularButton, { backgroundColor: 'white' }]}
-            onPress={handleVoiceActivation}
-          >
-            <Ionicons name="mic" size={24} color={borderColor} />
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.circularButton, { backgroundColor: 'white' }]}
-            onPress={handleLoopbackListening}
-          >
-            <Ionicons name="repeat" size={24} color={borderColor} />
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.circularButton, { backgroundColor: 'white' }]}
-            onPress={handleAddMedia}
-          >
-            <Ionicons name="add-circle" size={24} color={borderColor} />
-          </TouchableOpacity>
-        </View>
-      </View>
+        <HomeModal 
+          visible={true} 
+          onClose={() => {}} 
+        />
+      </ThemedView>
       
-      <HomeModal 
-        visible={true} 
-        onClose={() => {}} 
+      {/* Keyboard Toolbar - positioned to slide up with keyboard */}
+      <KeyboardToolbar 
+        visible={isKeyboardVisible}
+        onDone={() => setQueryText('')}
       />
-    </ThemedView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  mainContent: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
