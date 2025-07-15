@@ -54,6 +54,8 @@ export default function HomeModal({ visible, onClose }: HomeModalProps) {
     // Navigate based on the option selected
     if (optionId === 'settings') {
       router.push('/(screens)/settings');
+    } else if (optionId === 'profile') {
+      router.push('/(screens)/profile');
     }
     // Add more navigation cases here as you implement other screens
   };

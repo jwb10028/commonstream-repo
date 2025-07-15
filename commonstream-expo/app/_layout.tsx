@@ -31,6 +31,15 @@ export default function RootLayout() {
             headerTintColor: colorScheme === 'dark' ? '#fff' : '#000',
           }} 
         />
+        <Stack.Screen 
+          name="(screens)/profile" 
+          options={{ 
+            headerShown: true,
+            headerTitle: "",
+            headerBackTitle: "",
+            headerTintColor: colorScheme === 'dark' ? '#fff' : '#000',
+          }} 
+        />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="auto" />
