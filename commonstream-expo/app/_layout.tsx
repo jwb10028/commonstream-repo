@@ -34,6 +34,24 @@ function AppContent() {
             headerTintColor: colorScheme === 'dark' ? '#fff' : '#000',
           }} 
         />
+        <Stack.Screen 
+          name="(screens)/library" 
+          options={{ 
+            headerShown: true,
+            headerTitle: "",
+            headerBackTitle: "",
+            headerTintColor: colorScheme === 'dark' ? '#fff' : '#000',
+          }} 
+        />
+        <Stack.Screen 
+          name="(screens)/discover" 
+          options={{ 
+            headerShown: true,
+            headerTitle: "",
+            headerBackTitle: "",
+            headerTintColor: colorScheme === 'dark' ? '#fff' : '#000',
+          }} 
+        />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="auto" />

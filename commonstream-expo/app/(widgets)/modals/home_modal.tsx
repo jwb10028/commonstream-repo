@@ -66,6 +66,10 @@ export default function HomeModal({ visible, onClose }: HomeModalProps) {
       router.push('/(screens)/settings');
     } else if (optionId === 'profile') {
       router.push('/(screens)/profile');
+    } else if (optionId === 'library') {
+      router.push('/(screens)/library');
+    } else if (optionId === 'discover') {
+      router.push('/(screens)/discover');
     }
     // Add more navigation cases here as you implement other screens
   };
