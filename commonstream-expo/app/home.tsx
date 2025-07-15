@@ -1,17 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, TextInput, TouchableOpacity, Keyboard, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, StyleSheet, TextInput, TouchableOpacity, Keyboard, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import HomeModal from './(widgets)/modals/home_modal';
+import { QueryModal } from './(widgets)/modals/query_modal';
 import Glow from './(widgets)/ui/glow';
 import Transport from './(widgets)/ui/transport';
 import KeyboardToolbar from './(widgets)/ui/keyboard-toolbar';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { GroqService } from '@/services/GroqAPI';
+import { GeneratedPlaylist } from '@/types/Groq';
 
 export default function HomeScreen() {
   const [queryText, setQueryText] = useState('');
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  
+  // Query Modal States
+  const [modalVisible, setModalVisible] = useState(false);
+  const [playlist, setPlaylist] = useState<GeneratedPlaylist | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
   const tintColor = useThemeColor({}, 'tint');
   const borderColor = useThemeColor({}, 'text');
   const placeholderColor = useThemeColor({}, 'tabIconDefault');
@@ -49,10 +59,57 @@ export default function HomeScreen() {
     console.log('Add media button pressed');
   };
 
-  const handleQuerySubmit = () => {
-    console.log('Query submitted:', queryText);
-    setQueryText(''); // Clear the text after submission
-    Keyboard.dismiss(); // Close the keyboard after submission
+  const handleQuerySubmit = async () => {
+    if (!queryText.trim()) {
+      Alert.alert('Error', 'Please enter a playlist request');
+      return;
+    }
+
+    // Store the query for display in modal
+    const currentQuery = queryText.trim();
+    
+    // Clear input and dismiss keyboard immediately for better UX
+    setQueryText('');
+    Keyboard.dismiss();
+    
+    // Reset modal state and show it
+    setLoading(true);
+    setError(null);
+    setPlaylist(null);
+    setModalVisible(true);
+
+    try {
+      console.log('Generating playlist for:', currentQuery);
+      
+      const response = await GroqService.generatePlaylist({
+        prompt: currentQuery,
+        preferences: {
+          maxTracks: 15,
+          explicit: true,
+          energy: 'medium'
+        }
+      });
+
+      if (response.success && response.data) {
+        setPlaylist(response.data);
+        console.log('Playlist generated successfully:', response.data.name);
+      } else {
+        setError(response.error || 'Failed to generate playlist');
+        console.error('Playlist generation failed:', response.error);
+      }
+    } catch (err: unknown) {
+      const errorMessage = 'Failed to generate playlist. Please try again.';
+      setError(errorMessage);
+      console.error('Playlist generation error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setModalVisible(false);
+    setPlaylist(null);
+    setError(null);
   };
 
   return (
@@ -116,6 +173,15 @@ export default function HomeScreen() {
         <HomeModal 
           visible={true} 
           onClose={() => {}} 
+        />
+        
+        <QueryModal
+          visible={modalVisible}
+          onClose={handleCloseModal}
+          playlist={playlist}
+          loading={loading}
+          error={error || undefined}
+          query={queryText}
         />
       </ThemedView>
       

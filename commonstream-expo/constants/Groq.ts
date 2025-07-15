@@ -2,9 +2,9 @@ export const GROQ_CONFIG = {
   API_URL: 'https://api.groq.com/openai/v1/chat/completions',
   API_KEY: process.env.EXPO_PUBLIC_GROQ_API_KEY || '',
   MODELS: {
-    FAST: 'llama3-8b-8192',
-    BALANCED: 'llama3-70b-8192', 
-    CREATIVE: 'mixtral-8x7b-32768'
+    FAST: 'gemma2-9b-it',
+    BALANCED: 'gemma2-9b-it', 
+    CREATIVE: 'gemma2-9b-it'
   },
   MAX_TOKENS: 2048,
   TEMPERATURE: 0.7,
