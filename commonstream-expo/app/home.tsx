@@ -11,6 +11,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { GroqService } from '@/services/GroqAPI';
 import { GeneratedPlaylist } from '@/types/Groq';
+import { TrackMatchingService } from '@/services/TrackMatchingAPI';
+import { TrackMatchingResponse } from '@/types/TrackMatching';
+import { useSpotifyAuth } from '@/hooks/useSpotifyAuth';
 
 export default function HomeScreen() {
   const [queryText, setQueryText] = useState('');
@@ -21,6 +24,13 @@ export default function HomeScreen() {
   const [playlist, setPlaylist] = useState<GeneratedPlaylist | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Track Matching States
+  const [trackMatches, setTrackMatches] = useState<TrackMatchingResponse | null>(null);
+  const [matchingInProgress, setMatchingInProgress] = useState(false);
+  
+  // Spotify Auth
+  const { tokens, isAuthenticated, user, isLoading, error: authError } = useSpotifyAuth();
   
   const tintColor = useThemeColor({}, 'tint');
   const borderColor = useThemeColor({}, 'text');
@@ -74,13 +84,16 @@ export default function HomeScreen() {
     
     // Reset modal state and show it
     setLoading(true);
+    setMatchingInProgress(false);
     setError(null);
     setPlaylist(null);
+    setTrackMatches(null);
     setModalVisible(true);
 
     try {
-      console.log('Generating playlist for:', currentQuery);
+      console.log('🎵 Starting playlist generation with query:', currentQuery);
       
+      // Step 1: Generate playlist with Groq
       const response = await GroqService.generatePlaylist({
         prompt: currentQuery,
         preferences: {
@@ -91,25 +104,62 @@ export default function HomeScreen() {
       });
 
       if (response.success && response.data) {
+        console.log('✅ Groq playlist generated successfully:', response.data.name);
         setPlaylist(response.data);
-        console.log('Playlist generated successfully:', response.data.name);
+        setLoading(false);
+
+        // Step 2: Start track matching with Spotify
+        if (tokens?.access_token) {
+          setMatchingInProgress(true);
+          console.log('🔍 Starting track matching on Spotify...');
+
+          try {
+            const matchingResponse = await TrackMatchingService.matchTracks({
+              suggestedTracks: response.data.tracks,
+              accessToken: tokens.access_token,
+              options: {
+                maxResults: 5,
+                minConfidence: 60,
+                includeAlternatives: true,
+              }
+            });
+
+            if (matchingResponse.success) {
+              console.log('✅ Track matching completed:', matchingResponse.summary);
+              setTrackMatches(matchingResponse);
+            } else {
+              console.warn('⚠️ Track matching failed:', matchingResponse.error);
+              // Still show the playlist, just without matches
+              setError(`Playlist generated, but track matching failed: ${matchingResponse.error}`);
+            }
+          } catch (matchingErr: unknown) {
+            console.error('❌ Track matching error:', matchingErr);
+            setError('Playlist generated, but failed to find tracks on Spotify');
+          }
+        } else {
+          console.warn('⚠️ No Spotify access token available for track matching');
+          setError('Playlist generated, but please login to Spotify to find actual tracks');
+        }
       } else {
         setError(response.error || 'Failed to generate playlist');
-        console.error('Playlist generation failed:', response.error);
+        console.error('❌ Playlist generation failed:', response.error);
       }
     } catch (err: unknown) {
       const errorMessage = 'Failed to generate playlist. Please try again.';
       setError(errorMessage);
-      console.error('Playlist generation error:', err);
+      console.error('❌ Playlist generation error:', err);
     } finally {
       setLoading(false);
+      setMatchingInProgress(false);
     }
   };
 
   const handleCloseModal = () => {
     setModalVisible(false);
     setPlaylist(null);
+    setTrackMatches(null);
     setError(null);
+    setMatchingInProgress(false);
   };
 
   return (
@@ -182,6 +232,8 @@ export default function HomeScreen() {
           loading={loading}
           error={error || undefined}
           query={queryText}
+          trackMatches={trackMatches}
+          matchingInProgress={matchingInProgress}
         />
       </ThemedView>
       

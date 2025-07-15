@@ -13,14 +13,11 @@ const discovery = {
 };
 
 export function useSpotifyAuth() {
-  const [tokens, setTokens] = useState<SpotifyTokens | null>(null);
-  const [user, setUser] = useState<SpotifyUser | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { setAuthData } = useAuth();
+  const { tokens, user, setAuthData, logout: contextLogout } = useAuth();
 
   const redirectUri = makeRedirectUri({ scheme: 'exp' });
-  console.log('Redirect URI:', redirectUri); // Add this line to see what URI is being generated
 
   const [request, response, promptAsync] = useAuthRequest(
     {
@@ -63,8 +60,6 @@ export function useSpotifyAuth() {
         .map(key => encodeURIComponent(key) + '=' + encodeURIComponent(params[key]))
         .join('&');
 
-      console.log('Request body:', body);
-
       const response = await fetch(SPOTIFY_CONFIG.ENDPOINTS.TOKEN, {
         method: 'POST',
         headers: {
@@ -73,16 +68,12 @@ export function useSpotifyAuth() {
         body: body,
       });
 
-      console.log('Token response status:', response.status);
-      const responseText = await response.text();
-      console.log('Token response body:', responseText);
-
       if (!response.ok) {
+        const responseText = await response.text();
         throw new Error(`Failed to exchange code for token: ${response.status} - ${responseText}`);
       }
 
-      const tokenData: SpotifyTokens = JSON.parse(responseText);
-      setTokens(tokenData);
+      const tokenData: SpotifyTokens = await response.json();
       
       // Fetch user data
       await fetchUserData(tokenData.access_token, tokenData);
@@ -108,7 +99,6 @@ export function useSpotifyAuth() {
       }
 
       const userData: SpotifyUser = await response.json();
-      setUser(userData);
       
       // Update the auth context with both tokens and user data
       await setAuthData(tokens, userData);
@@ -125,9 +115,8 @@ export function useSpotifyAuth() {
   };
 
   const logout = () => {
-    setTokens(null);
-    setUser(null);
     setError(null);
+    contextLogout();
   };
 
   return {

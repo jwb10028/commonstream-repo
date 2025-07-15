@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { GeneratedPlaylist, SuggestedTrack } from '@/types/Groq';
+import { TrackMatchingResponse } from '@/types/TrackMatching';
 
 interface QueryModalProps {
   visible: boolean;
@@ -19,6 +20,8 @@ interface QueryModalProps {
   loading?: boolean;
   error?: string;
   query?: string;
+  trackMatches?: TrackMatchingResponse | null;
+  matchingInProgress?: boolean;
 }
 
 export function QueryModal({ 
@@ -27,7 +30,9 @@ export function QueryModal({
   playlist, 
   loading = false, 
   error,
-  query 
+  query,
+  trackMatches,
+  matchingInProgress = false 
 }: QueryModalProps) {
   return (
     <Modal
@@ -57,13 +62,16 @@ export function QueryModal({
 
           {/* Content */}
           <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-            {loading && (
+            {(loading || matchingInProgress) && (
               <View style={styles.loadingContainer}>
                 <View style={styles.loadingIcon}>
                   <ThemedText style={styles.loadingEmoji}>🎵</ThemedText>
                 </View>
                 <ThemedText style={styles.loadingText}>
-                  AI is curating your perfect playlist...
+                  {loading 
+                    ? "AI is curating your perfect playlist..."
+                    : "Finding tracks on Spotify..."
+                  }
                 </ThemedText>
               </View>
             )}
@@ -80,6 +88,15 @@ export function QueryModal({
 
             {playlist && !loading && (
               <>
+                {/* Show matching progress if in progress */}
+                {matchingInProgress && (
+                  <View style={styles.matchingProgressContainer}>
+                    <ThemedText style={styles.matchingProgressText}>
+                      🔍 Finding tracks on Spotify...
+                    </ThemedText>
+                  </View>
+                )}
+
                 {/* Playlist Info */}
                 <View style={styles.playlistInfo}>
                   <ThemedText type="subtitle" style={styles.playlistName}>
@@ -376,5 +393,19 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: 'white',
+  },
+
+  // Matching Progress Styles
+  matchingProgressContainer: {
+    padding: 16,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  matchingProgressText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
   },
 });
