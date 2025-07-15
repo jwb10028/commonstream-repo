@@ -135,7 +135,7 @@ const createStyles = (backgroundColor: string, textColor: string, iconColor: str
     backgroundColor: backgroundColor,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    shadowColor: textColor,
+    shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: -2,
@@ -178,7 +178,7 @@ const createStyles = (backgroundColor: string, textColor: string, iconColor: str
     backgroundColor: tintColor,
     alignItems: 'flex-start',
     justifyContent: 'center',
-    shadowColor: textColor,
+    shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,

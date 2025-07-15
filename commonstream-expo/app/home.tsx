@@ -167,7 +167,7 @@ export default function HomeScreen() {
       style={styles.container} 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ThemedView style={styles.mainContent}>
+      <View style={[styles.mainContent, { backgroundColor: '#fff' }]}>
         <Glow />
         <View style={styles.content}>
           {/* Audio Transport Controls */}
@@ -235,7 +235,7 @@ export default function HomeScreen() {
           trackMatches={trackMatches}
           matchingInProgress={matchingInProgress}
         />
-      </ThemedView>
+      </View>
       
       {/* Keyboard Toolbar - positioned to slide up with keyboard */}
       <KeyboardToolbar 

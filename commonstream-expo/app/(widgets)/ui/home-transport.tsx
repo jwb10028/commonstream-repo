@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { Colors } from '@/constants/Colors';
 
 export default function Transport() {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -11,6 +12,9 @@ export default function Transport() {
   const borderColor = useThemeColor({}, 'text');
   const backgroundColor = useThemeColor({}, 'background');
   const cardBackground = useThemeColor({}, 'background');
+  
+  // Always use day mode color for transport buttons
+  const buttonColor = Colors.light.text; // '#11181C' - black
 
   // Mock song data
   const songData = {
@@ -86,7 +90,7 @@ export default function Transport() {
           style={styles.transportButton}
           onPress={handlePreviousTrack}
         >
-          <Ionicons name="play-skip-back" size={31} color={borderColor} />
+          <Ionicons name="play-skip-back" size={31} color={buttonColor} />
         </TouchableOpacity>
 
         <TouchableOpacity 
@@ -96,7 +100,7 @@ export default function Transport() {
           <Ionicons 
             name={isPlaying ? "pause" : "play"} 
             size={31} 
-            color={borderColor} 
+            color={buttonColor} 
             style={!isPlaying ? styles.playIcon : undefined}
           />
         </TouchableOpacity>
@@ -105,7 +109,7 @@ export default function Transport() {
           style={styles.transportButton}
           onPress={handleNextTrack}
         >
-          <Ionicons name="play-skip-forward" size={31} color={borderColor} />
+          <Ionicons name="play-skip-forward" size={31} color={buttonColor} />
         </TouchableOpacity>
       </View>
     </View>
