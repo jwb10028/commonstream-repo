@@ -5,6 +5,8 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useAuth } from '@/context/AuthContext';
 import { useSpotifyAuth } from '@/hooks/useSpotifyAuth';
+import { Ionicons } from '@expo/vector-icons';
+import Glow from '@/app/(widgets)/ui/glow';
 
 export default function AuthScreen() {
   const router = useRouter();
@@ -28,35 +30,47 @@ export default function AuthScreen() {
   if (authLoading) {
     return (
       <ThemedView style={styles.container}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <ThemedText style={styles.loadingText}>Loading...</ThemedText>
+        <Glow />
+        <View style={styles.loadingContent}>
+          <ActivityIndicator size="large" color="#1DB954" />
+          <ThemedText style={styles.loadingText}>Loading...</ThemedText>
+        </View>
       </ThemedView>
     );
   }
 
   return (
     <ThemedView style={styles.container}>
+      <Glow />
       <View style={styles.content}>
-        <ThemedText type="title" style={styles.title}>
-          Welcome to CommonStream
-        </ThemedText>
-        <ThemedText style={styles.subtitle}>
-          Connect your Spotify account to continue
-        </ThemedText>
+        <View style={styles.titleContainer}>
+          <ThemedText type="title" style={styles.title}>
+            Common
+          </ThemedText>
+          <ThemedText type="title" style={styles.title}>
+            Stream
+          </ThemedText>
+        </View>
         
         {error && (
           <Text style={styles.errorText}>{error}</Text>
         )}
-        
+      </View>
+      
+      {/* Footer with login button */}
+      <View style={styles.footer}>
         <TouchableOpacity 
           style={[styles.loginButton, spotifyLoading && styles.loginButtonDisabled]} 
           onPress={handleLogin}
           disabled={spotifyLoading}
         >
           {spotifyLoading ? (
-            <ActivityIndicator color="white" />
+            <ActivityIndicator color="black" size="small" />
           ) : (
-            <Text style={styles.loginButtonText}>Connect with Spotify</Text>
+            <View style={styles.buttonContent}>
+              <Ionicons name="musical-notes" size={24} color="black" style={styles.spotifyIcon} />
+              <Text style={styles.loginButtonText}>Continue with Spotify</Text>
+            </View>
           )}
         </TouchableOpacity>
       </View>
@@ -67,48 +81,82 @@ export default function AuthScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
     padding: 20,
   },
-  content: {
+  loadingContent: {
+    flex: 1,
     alignItems: 'center',
-    maxWidth: 300,
-    width: '100%',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  content: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  footer: {
+    alignItems: 'center',
+    paddingBottom: 40,
+    zIndex: 1,
+  },
+  titleContainer: {
+    alignItems: 'center',
   },
   title: {
-    marginBottom: 10,
     textAlign: 'center',
-  },
-  subtitle: {
-    marginBottom: 40,
-    textAlign: 'center',
-    opacity: 0.7,
+    fontSize: 32,
+    fontWeight: 'bold',
+    letterSpacing: 1,
   },
   loginButton: {
-    backgroundColor: '#1DB954', // Spotify green
+    backgroundColor: 'white',
     paddingHorizontal: 40,
-    paddingVertical: 15,
-    borderRadius: 8,
-    minWidth: 200,
+    paddingVertical: 18,
+    borderRadius: 12, // More square, less rounded
+    minWidth: 320,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
   },
   loginButtonDisabled: {
     opacity: 0.7,
   },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  spotifyIcon: {
+    marginRight: 12,
+  },
   loginButtonText: {
-    color: 'white',
-    fontSize: 16,
+    color: 'black',
+    fontSize: 18,
     fontWeight: '600',
     textAlign: 'center',
   },
   loadingText: {
     marginTop: 20,
     textAlign: 'center',
+    fontSize: 16,
   },
   errorText: {
-    color: 'red',
+    color: '#FF3B30',
     textAlign: 'center',
-    marginBottom: 20,
+    marginTop: 20,
     fontSize: 14,
+    fontWeight: '500',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(255, 59, 48, 0.1)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 59, 48, 0.2)',
   },
 });
