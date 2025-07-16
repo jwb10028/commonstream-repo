@@ -8,7 +8,7 @@ import {
   AddTracksResponse,
   PlaylistCreationError,
   PLAYLIST_CREATION_CONFIG,
-} from '@/types/Playlist';
+} from '@/types/PlaylistCreation';
 import { SPOTIFY_CONFIG } from '@/constants/Spotify';
 import { TrackMatchingResponse, TrackMatch } from '@/types/TrackMatching';
 
