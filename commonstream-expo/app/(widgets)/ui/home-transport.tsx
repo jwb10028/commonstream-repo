@@ -119,14 +119,15 @@ export default function Transport() {
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 0,
+    marginTop: 0, // Add this line to remove any top margin
     width: '100%', // Ensure full width container
   },
   musicCard: {
     flexDirection: 'row',
     padding: 35, // Increased from 28 for more internal spacing
     borderRadius: 12,
-    marginBottom: 20,
+    marginBottom: -65, // WILL NEED TO ADJUST LATER QUICK FIX
     width: '110%', // Match the query box width exactly
     minHeight: 195, // Increased from 145 to make it 35% taller
     shadowColor: '#000',
@@ -183,7 +184,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 40,
+    gap: 45,
+    marginBottom: 115, // Adjusted for better spacing
   },
   transportButton: {
     width: 50,
