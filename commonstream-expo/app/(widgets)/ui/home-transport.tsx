@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
     padding: 35, // Increased from 28 for more internal spacing
     borderRadius: 12,
     marginBottom: 20,
-    width: '100%', // Match the query box width exactly
+    width: '110%', // Match the query box width exactly
     minHeight: 195, // Increased from 145 to make it 35% taller
     shadowColor: '#000',
     shadowOffset: {

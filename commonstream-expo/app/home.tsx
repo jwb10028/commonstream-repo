@@ -276,7 +276,8 @@ const styles = StyleSheet.create({
     width: '100%', // Ensure full width to match query box
   },
   queryContainer: {
-    width: '100%',
+    width: '110%', // Make the query box about 8% wider than before
+    alignSelf: 'center',
     marginTop: 60, // Add top margin to push query box down
     marginBottom: 20,
     borderRadius: 12,
@@ -284,14 +285,15 @@ const styles = StyleSheet.create({
     minHeight: 64, // Reduced from 80 to make it 20% shorter
     flexDirection: 'row',
     alignItems: 'flex-end',
-    shadowColor: 'rgba(0,0,0,0.1)',
+    // Drop shadow
+    shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 8,
     },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 8, // For Android shadow
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    elevation: 12, // For Android shadow
   },
   queryInput: {
     fontSize: 16,
