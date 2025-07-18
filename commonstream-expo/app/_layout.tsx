@@ -53,7 +53,7 @@ function AppContent() {
           }} 
         />
         <Stack.Screen 
-          name="(screens)/stream" 
+          name="(screens)/connect" 
           options={{ 
             headerShown: true,
             headerTitle: "",
