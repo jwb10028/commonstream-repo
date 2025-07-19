@@ -63,8 +63,14 @@ export default function ConnectScreen() {
           theta: lastRotation.current.theta + gestureState.dx * 0.01,
         });
       },
-      onPanResponderRelease: () => {
-        // Do not change focused node on release, just keep current rotation
+      onPanResponderRelease: (_, gestureState) => {
+        // Snap to nearest node horizontally
+        const NUM_NODES = subNodes.length;
+        const theta = lastRotation.current.theta + gestureState.dx * 0.01;
+        let idx = Math.round((-theta / (2 * Math.PI)) * NUM_NODES) % NUM_NODES;
+        if (idx < 0) idx += NUM_NODES;
+        setFocusedIdx(idx);
+        setRotation({ phi: rotation.phi, theta: -(idx / NUM_NODES) * 2 * Math.PI });
       },
     })
   ).current;
