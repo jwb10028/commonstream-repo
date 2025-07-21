@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { View, StyleSheet, Modal, Text, TouchableOpacity, Dimensions, PanResponder } from 'react-native';
+import { View, StyleSheet, Modal, Text, TouchableOpacity, Dimensions, PanResponder, ScrollView, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -19,13 +19,22 @@ interface Node {
 // User query mock (can be replaced with prop or state)
 const userQuery = { type: 'artist', label: 'User Artist Query' };
 
-// Generate 50 sub nodes
-const subNodes: Node[] = Array.from({ length: 50 }, (_, i) => ({
-  id: `subnode${i + 1}`,
-  type: 'general',
-  label: `Node ${i + 1}`,
-  edges: [],
-}));
+// Generate 30 sub nodes, with the first node as the focused node labeled '...'
+const NUM_UI_NODES = 30;
+const subNodes: Node[] = [
+  {
+    id: 'subnode1',
+    type: 'track',
+    label: '...',
+    edges: [],
+  },
+  ...Array.from({ length: NUM_UI_NODES - 1 }, (_, i) => ({
+    id: `subnode${i + 2}`,
+    type: 'general' as NodeType,
+    label: '',
+    edges: [],
+  }))
+];
 
 // Primary node
 const primaryNode: Node = {
@@ -51,6 +60,155 @@ export default function ConnectScreen() {
   // Sphere rotation: phi (vertical), theta (horizontal)
   const [rotation, setRotation] = useState({ phi: 0, theta: 0 });
   const [focusedIdx, setFocusedIdx] = useState(0);
+  // Subnodes state (populated from ConnectAPI)
+  const [nodes, setNodes] = useState<Node[]>(subNodes);
+
+  // Handler for selection from modal
+  const handleSelectBarItem = async (type: 'artist' | 'track' | 'genre', value: any) => {
+    setSelectModalVisible(false);
+    try {
+      const { ConnectService } = require('@/services/ConnectAPI');
+      let query;
+      if (type === 'track' && typeof value === 'object') {
+        query = { type, value: {
+          name: value.name,
+          artists: value.artists?.map((a: any) => a.name),
+          album: value.album?.name,
+          album_images: value.album?.images,
+          id: value.id,
+          external_urls: value.external_urls,
+        }};
+      } else if (type === 'artist' && typeof value === 'object') {
+        query = { type, value: {
+          name: value.name,
+          genres: value.genres,
+          id: value.id,
+          images: value.images,
+          external_urls: value.external_urls,
+        }};
+      } else {
+        query = { type, value };
+      }
+
+      // Incremental batching logic
+      const allNodes: any[] = [];
+      const seenTitles = new Set<string>();
+      let errorMsg = '';
+      let attempts = 0;
+      const maxAttempts = 10;
+      let shouldStop = false;
+      while (allNodes.length < NUM_UI_NODES && attempts < maxAttempts && !shouldStop) {
+        const result = await ConnectService.getNodes(query);
+        attempts++;
+        if (!result.success || !result.data || !result.data.nodes) {
+          errorMsg = result.error || `Batch failed`;
+          shouldStop = true;
+          break;
+        }
+        for (const n of result.data.nodes) {
+          if (allNodes.length >= NUM_UI_NODES) break;
+          if (!seenTitles.has(n.title)) {
+            allNodes.push(n);
+            seenTitles.add(n.title);
+          }
+        }
+        const realNodes = allNodes.map((n: any, i: number) => ({
+          ...n,
+          id: `subnode${i + 1}`,
+          type: type,
+          label: n.title || n.label || `Node ${i + 1}`,
+          edges: [],
+        }));
+        const emptyCount = NUM_UI_NODES - realNodes.length;
+        const emptyNodes = Array.from({ length: emptyCount }, (_, i) => ({
+          id: `subnode${realNodes.length + i + 1}`,
+          type: 'general',
+          label: '',
+          edges: [],
+        }));
+        const allDisplayNodes = [...realNodes, ...emptyNodes];
+        for (let i = allDisplayNodes.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [allDisplayNodes[i], allDisplayNodes[j]] = [allDisplayNodes[j], allDisplayNodes[i]];
+        }
+        setNodes([...allDisplayNodes]);
+        const firstNonGeneralIdx = allDisplayNodes.findIndex(n => n.type !== 'general');
+        setFocusedIdx(firstNonGeneralIdx >= 0 ? firstNonGeneralIdx : 0);
+        setRotation({ phi: 0, theta: 0 });
+      }
+      if (allNodes.length < NUM_UI_NODES) {
+        console.error('ConnectAPI error or not enough unique nodes:', errorMsg || `Only received ${allNodes.length} nodes`);
+      }
+    } catch (err) {
+      console.error('ConnectAPI error:', err);
+    }
+  };
+
+  // Spotify API logic for select modal
+  const { tokens } = require('@/hooks/useSpotifyAuth').useSpotifyAuth();
+  const spotifyApi = require('@/services/SpotifyAPI').spotifyApi;
+  const [artists, setArtists] = useState<any[]>([]);
+  const [loadingArtists, setLoadingArtists] = useState(false);
+  const [artistsError, setArtistsError] = useState<string | null>(null);
+  const [tracks, setTracks] = useState<any[]>([]);
+  const [loadingTracks, setLoadingTracks] = useState(false);
+  const [tracksError, setTracksError] = useState<string | null>(null);
+  const [genres, setGenres] = useState<string[]>([]);
+  const [loadingGenres, setLoadingGenres] = useState(false);
+  const [genresError, setGenresError] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    const fetchArtists = async () => {
+      if (activeTab === 'artists' && tokens?.access_token) {
+        setLoadingArtists(true);
+        setArtistsError(null);
+        try {
+          const data = await spotifyApi.getUserTopArtists(tokens.access_token, 'medium_term', 20);
+          setArtists(data.items || []);
+        } catch (err: any) {
+          setArtistsError(err.message || 'Failed to fetch artists');
+        } finally {
+          setLoadingArtists(false);
+        }
+      }
+    };
+    const fetchTracks = async () => {
+      if (activeTab === 'tracks' && tokens?.access_token) {
+        setLoadingTracks(true);
+        setTracksError(null);
+        try {
+          const data = await spotifyApi.getUserTopTracks(tokens.access_token, 'medium_term', 20);
+          setTracks(data.items || []);
+        } catch (err: any) {
+          setTracksError(err.message || 'Failed to fetch tracks');
+        } finally {
+          setLoadingTracks(false);
+        }
+      }
+    };
+    const fetchGenres = async () => {
+      if (activeTab === 'genres' && tokens?.access_token) {
+        setLoadingGenres(true);
+        setGenresError(null);
+        try {
+          // Get genres from top artists
+          const data = await spotifyApi.getUserTopArtists(tokens.access_token, 'medium_term', 20);
+          const genreSet = new Set<string>();
+          (data.items || []).forEach((artist: any) => {
+            (artist.genres || []).forEach((g: string) => genreSet.add(g));
+          });
+          setGenres(Array.from(genreSet));
+        } catch (err: any) {
+          setGenresError(err.message || 'Failed to fetch genres');
+        } finally {
+          setLoadingGenres(false);
+        }
+      }
+    };
+    fetchArtists();
+    fetchTracks();
+    fetchGenres();
+  }, [activeTab, tokens]);
 
   // PanResponder for sphere rotation
   const lastRotation = useRef({ phi: 0, theta: 0 });
@@ -87,7 +245,7 @@ export default function ConnectScreen() {
   // Center sphere vertically in graph area, but move it further down
   const GRAPH_HEIGHT = 340;
   const centerY = GRAPH_HEIGHT / 2 + 120;
-  const NUM_NODES = subNodes.length;
+  const NUM_NODES = NUM_UI_NODES;
 const RADIUS = 260;
 
   // Disperse nodes in latitude/longitude for sphere
@@ -184,23 +342,118 @@ const RADIUS = 260;
                   </TouchableOpacity>
                 ))}
               </View>
-              {/* Tab content */}
-              <View style={{ marginTop: 18, minHeight: 120, alignItems: 'center', justifyContent: 'center' }}>
-                {activeTab === 'tracks' && <Text style={{ color: textColor }}>Tracks content goes here.</Text>}
-                {activeTab === 'artists' && <Text style={{ color: textColor }}>Artists content goes here.</Text>}
-                {activeTab === 'genres' && <Text style={{ color: textColor }}>Genres content goes here.</Text>}
+              {/* Tab content: show lists from Spotify, just like LibraryScreen */}
+              <View style={{ marginTop: 18, minHeight: 120, alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+                {activeTab === 'tracks' && (
+                  loadingTracks ? (
+                    <Text style={{ color: textColor }}>Loading tracks...</Text>
+                  ) : tracksError ? (
+                    <Text style={{ color: 'red' }}>{tracksError}</Text>
+                  ) : tracks.length === 0 ? (
+                    <Text style={{ color: textColor }}>No top tracks found.</Text>
+                  ) : (
+                    <ScrollView style={{ width: '100%' }} contentContainerStyle={{ paddingBottom: 24 }}>
+                      {tracks.map((track: any) => (
+                        <TouchableOpacity
+                          key={track.id}
+                          style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 8 }}
+                        onPress={() => handleSelectBarItem('track', track)}
+                        >
+                          {track.album?.images && track.album.images[0]?.url ? (
+                            <View style={{ marginRight: 14 }}>
+                              <Image
+                                source={{ uri: track.album.images[0].url }}
+                                style={{ width: 48, height: 48, borderRadius: 8, backgroundColor: '#eee' }}
+                                resizeMode="cover"
+                              />
+                            </View>
+                          ) : (
+                            <Ionicons name="musical-notes" size={32} color={textColor} style={{ marginRight: 14 }} />
+                          )}
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ color: textColor, fontSize: 16, fontWeight: '600' }}>{track.name}</Text>
+                            <Text style={{ color: Colors.light.icon, fontSize: 13 }}>{track.artists?.map((a: any) => a.name).join(', ') || 'Track'}</Text>
+                          </View>
+                          <Ionicons name="chevron-forward" size={20} color={textColor} />
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  )
+                )}
+                {activeTab === 'artists' && (
+                  loadingArtists ? (
+                    <Text style={{ color: textColor }}>Loading artists...</Text>
+                  ) : artistsError ? (
+                    <Text style={{ color: 'red' }}>{artistsError}</Text>
+                  ) : artists.length === 0 ? (
+                    <Text style={{ color: textColor }}>No top artists found.</Text>
+                  ) : (
+                    <ScrollView style={{ width: '100%' }} contentContainerStyle={{ paddingBottom: 24 }}>
+                      {artists.map((artist: any) => (
+                        <TouchableOpacity
+                          key={artist.id}
+                          style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 8 }}
+                        onPress={() => handleSelectBarItem('artist', artist)}
+                        >
+                          {artist.images && artist.images[0]?.url ? (
+                            <View style={{ marginRight: 14 }}>
+                              <Image
+                                source={{ uri: artist.images[0].url }}
+                                style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#eee' }}
+                                resizeMode="cover"
+                              />
+                            </View>
+                          ) : (
+                            <Ionicons name="person" size={32} color={textColor} style={{ marginRight: 14 }} />
+                          )}
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ color: textColor, fontSize: 16, fontWeight: '600' }}>{artist.name}</Text>
+                            <Text style={{ color: Colors.light.icon, fontSize: 13 }}>{artist.genres?.join(', ') || 'Artist'}</Text>
+                          </View>
+                          <Ionicons name="chevron-forward" size={20} color={textColor} />
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  )
+                )}
+                {activeTab === 'genres' && (
+                  loadingGenres ? (
+                    <Text style={{ color: textColor }}>Loading genres...</Text>
+                  ) : genresError ? (
+                    <Text style={{ color: 'red' }}>{genresError}</Text>
+                  ) : genres.length === 0 ? (
+                    <Text style={{ color: textColor }}>No genres found.</Text>
+                  ) : (
+                    <ScrollView style={{ width: '100%' }} contentContainerStyle={{ paddingBottom: 24 }}>
+                      {genres.map((genre: string) => (
+                        <TouchableOpacity
+                          key={genre}
+                          style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 8 }}
+                          onPress={() => handleSelectBarItem('genre', genre)}
+                        >
+                          <Ionicons name="pricetag" size={32} color={textColor} style={{ marginRight: 14 }} />
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ color: textColor, fontSize: 16, fontWeight: '600' }}>{genre}</Text>
+                          </View>
+                          <Ionicons name="chevron-forward" size={20} color={textColor} />
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  )
+                )}
               </View>
             </View>
           </View>
         </Modal>
         {/* Only render subnodes in sphere */}
         <View style={styles.graphArea} {...panResponder.panHandlers}>
-          {subNodes.map((node, idx) => {
+          {nodes.map((node, idx) => {
             // Get sphere coordinates
             const { x, y, depth } = getSphereCoords(idx, NUM_NODES, rotation);
             const isFocused = idx === focusedIdx;
             const scale = isFocused ? 3.0 : 0.6 + 0.4 * depth;
-            const opacity = isFocused ? 1 : 0.12 + 0.24 * depth;
+            let opacity = isFocused ? 1 : 0.12 + 0.24 * depth;
+            if (node.type === 'general') opacity = 0.5;
             // For all nodes, use calculated x/y from getSphereCoords
             // For focused node, override x/y so it is exactly at center
             // Offset focused node: 1% right, 30% down from center
@@ -213,7 +466,7 @@ const RADIUS = 260;
             return (
               <TouchableOpacity
                 key={node.id}
-                style={[ 
+                style={[
                   styles.node,
                   styles.subNode,
                   {
@@ -231,22 +484,77 @@ const RADIUS = 260;
                     shadowOpacity: 0.18,
                     shadowRadius: 6,
                     elevation: 6,
+                    paddingHorizontal: isFocused ? 12 : 8,
+                    paddingVertical: isFocused ? 10 : 6,
                   },
                 ]}
                 onPress={() => {
                   if (isFocused) {
-                    // Open modal for focused node
                     setSelectedNode(node);
                     setModalVisible(true);
                   } else {
-                    // Switch focus to this node
                     setFocusedIdx(idx);
                     setRotation({ phi: rotation.phi, theta: -(idx / NUM_NODES) * 2 * Math.PI });
                   }
                 }}
               >
-                <Text style={{ color: textColor, fontWeight: 'bold', textAlign: 'center' }}>{node.label}</Text>
-                <Text style={{ color: textColor, fontSize: 12 }}>{node.type}</Text>
+                {isFocused ? (
+                  <View style={{
+                    width: NODE_SIZE * 0.9,
+                    height: NODE_SIZE * 0.9,
+                    borderRadius: (NODE_SIZE * 0.9) / 2,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    backgroundColor: backgroundColor,
+                    borderWidth: 0.0,
+                    borderColor: Colors.light.icon,
+                    shadowColor: Colors.light.icon,
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.18,
+                    shadowRadius: 5,
+                    elevation: 6,
+                    alignSelf: 'center',
+                  }}>
+                    {(node as any).cover_image ? (
+                      <Image
+                        source={{ uri: (node as any).cover_image }}
+                        style={{
+                          width: NODE_SIZE * 0.9,
+                          height: NODE_SIZE * 0.9,
+                          borderRadius: (NODE_SIZE * 0.9) / 2,
+                          backgroundColor: '#eee',
+                        }}
+                        resizeMode="cover"
+                      />
+                    ) : null}
+                  </View>
+                ) : null}
+                {/* Label overlays avatar for focused node, or is alone for others */}
+                {!isFocused && (
+                  <View style={{
+                    position: 'relative',
+                    width: '98%',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 2,
+                    paddingHorizontal: 2,
+                  }}>
+                    <Text
+                      style={{
+                        color: textColor,
+                        fontWeight: 'bold',
+                        textAlign: 'center',
+                        fontSize: 13,
+                        width: '100%',
+                      }}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                    >
+                      {node.label}
+                    </Text>
+                  </View>
+                )}
+                {/* Subheading removed */}
               </TouchableOpacity>
             );
           })}
@@ -267,11 +575,73 @@ const RADIUS = 260;
                 <View style={styles.handleBar} />
               </TouchableOpacity>
               <View style={{ height: 36 }} />
-              {/* Node info content */}
-              <View style={{ alignItems: 'center', justifyContent: 'center', width: '100%' }}>
-                <Text style={{ fontWeight: 'bold', fontSize: 20, marginBottom: 8, color: textColor }}>{selectedNode?.label}</Text>
-                <Text style={{ marginBottom: 12, color: textColor }}>{selectedNode?.type}</Text>
-              </View>
+              {/* Node profile content */}
+              <ScrollView style={{ width: '100%' }} contentContainerStyle={{ alignItems: 'center', justifyContent: 'flex-start', paddingBottom: 32 }}>
+                {selectedNode ? (
+                  <>
+                    {/* Cover image */}
+                    {(selectedNode as any).cover_image ? (
+                      <Image
+                        source={{ uri: (selectedNode as any).cover_image }}
+                        style={{ width: 120, height: 120, borderRadius: 16, marginBottom: 18, backgroundColor: '#eee' }}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <Ionicons name="image-outline" size={80} color={Colors.light.icon} style={{ marginBottom: 18 }} />
+                    )}
+                    {/* Title */}
+                    <Text style={{ fontWeight: 'bold', fontSize: 22, marginBottom: 6, color: textColor, textAlign: 'center' }}>
+                      {(selectedNode as any).title || selectedNode.label || 'No Title'}
+                    </Text>
+                    {/* Date Range */}
+                    <Text style={{ color: textColor, fontSize: 16, marginBottom: 10, fontWeight: '600' }}>
+                      Date Range: {(selectedNode as any).date_range || 'N/A'}
+                    </Text>
+                    {/* Description */}
+                    <View style={{ marginBottom: 16, width: '100%' }}>
+                      <Text style={{ color: textColor, fontWeight: '600', fontSize: 16, marginBottom: 4 }}>Description</Text>
+                      <Text style={{ color: textColor, fontSize: 15, textAlign: 'center' }}>
+                        {(selectedNode as any).description || 'No description available.'}
+                      </Text>
+                    </View>
+                    {/* Relevant Links */}
+                    <View style={{ marginTop: 8, alignItems: 'center', width: '100%' }}>
+                      <Text style={{ fontWeight: '600', color: textColor, marginBottom: 4 }}>Relevant Links</Text>
+                      {(selectedNode as any).relevantLinks && Array.isArray((selectedNode as any).relevantLinks) && (selectedNode as any).relevantLinks.length > 0 ? (
+                        (selectedNode as any).relevantLinks.map((link: any, idx: number) => (
+                          <TouchableOpacity
+                            key={link.url + idx}
+                            onPress={() => {
+                              // Open link in browser
+                              if (link.url) {
+                                // @ts-ignore
+                                if (typeof window !== 'undefined' && window.open) {
+                                  window.open(link.url, '_blank');
+                                } else {
+                                  // For React Native, use Linking
+                                  const Linking = require('react-native').Linking;
+                                  Linking.openURL(link.url);
+                                }
+                              }
+                            }}
+                            style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}
+                          >
+                            <Ionicons name="link" size={18} color={tintColor} style={{ marginRight: 6 }} />
+                            <Text style={{ color: tintColor, textDecorationLine: 'underline', fontSize: 15 }}>{link.url}</Text>
+                            {link.type && (
+                              <Text style={{ color: Colors.light.icon, fontSize: 13, marginLeft: 8 }}>{link.type}</Text>
+                            )}
+                          </TouchableOpacity>
+                        ))
+                      ) : (
+                        <Text style={{ color: Colors.light.icon, fontSize: 15 }}>No links available.</Text>
+                      )}
+                    </View>
+                  </>
+                ) : (
+                  <Text style={{ color: textColor, fontSize: 16 }}>No node selected.</Text>
+                )}
+              </ScrollView>
             </View>
           </View>
         </Modal>
