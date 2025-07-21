@@ -40,6 +40,9 @@ const EDGE_COLOR = '#ccc';
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
 export default function ConnectScreen() {
+  // Modal for select bar tabs
+  const [selectModalVisible, setSelectModalVisible] = useState(false);
+  const [activeTab, setActiveTab] = useState<'tracks' | 'artists' | 'genres'>('tracks');
   const textColor = useThemeColor({}, 'text');
   const tintColor = useThemeColor({}, 'tint');
   const backgroundColor = useThemeColor({}, 'background');
@@ -63,14 +66,8 @@ export default function ConnectScreen() {
           theta: lastRotation.current.theta + gestureState.dx * 0.01,
         });
       },
-      onPanResponderRelease: (_, gestureState) => {
-        // Snap to nearest node horizontally
-        const NUM_NODES = subNodes.length;
-        const theta = lastRotation.current.theta + gestureState.dx * 0.01;
-        let idx = Math.round((-theta / (2 * Math.PI)) * NUM_NODES) % NUM_NODES;
-        if (idx < 0) idx += NUM_NODES;
-        setFocusedIdx(idx);
-        setRotation({ phi: rotation.phi, theta: -(idx / NUM_NODES) * 2 * Math.PI });
+      onPanResponderRelease: () => {
+        // Do nothing on release; focused node only changes on tap
       },
     })
   ).current;
@@ -118,11 +115,12 @@ const RADIUS = 260;
     return { x: x2d, y: y2d, depth };
   }
 
+  const windowHeight = Dimensions.get('window').height;
   return (
     <ThemedView style={[styles.container, { backgroundColor }] }>
       <View style={styles.centered}>
         {/* Bar select button above nodes */}
-        <View style={{ width: SCREEN_WIDTH, alignItems: 'center', marginBottom: -72, marginTop: 8 }}>
+        <View style={{ width: SCREEN_WIDTH, alignItems: 'center', marginBottom: -72, marginTop: 8, zIndex: 10000, position: 'relative' }}>
           <TouchableOpacity
             style={{
               flexDirection: 'row',
@@ -143,7 +141,7 @@ const RADIUS = 260;
               shadowRadius: 6,
               elevation: 4,
             }}
-            onPress={() => alert('Select Bar Button Pressed')}
+            onPress={() => setSelectModalVisible(true)}
           >
             <Ionicons name="options-outline" size={20} color={textColor} style={{ marginRight: 8 }} />
             <Text style={{ color: textColor, fontWeight: '600', fontSize: 16 }}>
@@ -151,22 +149,66 @@ const RADIUS = 260;
             </Text>
           </TouchableOpacity>
         </View>
+        {/* Modal for select bar tabs */}
+        <Modal
+          visible={selectModalVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setSelectModalVisible(false)}
+        >
+          <View style={styles.bottomModalOverlay}>
+            <View style={[styles.bottomModalContent, {
+              height: windowHeight * 0.75,
+              backgroundColor: backgroundColor,
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              shadowColor: '#222',
+              borderColor: '#ddd',
+            }] }>
+              {/* Handle bar for closing modal */}
+              <TouchableOpacity style={styles.handle} onPress={() => setSelectModalVisible(false)}>
+                <View style={styles.handleBar} />
+              </TouchableOpacity>
+              <View style={{ height: 36 }} />
+              {/* Tab bar */}
+              <View style={styles.tabBar}>
+                {['artists', 'tracks', 'genres'].map(tab => (
+                  <TouchableOpacity
+                    key={tab}
+                    style={[styles.tabBtn, activeTab === tab ? styles.tabBtnActive : null]}
+                    onPress={() => setActiveTab(tab as 'tracks' | 'artists' | 'genres')}
+                  >
+                    <Text style={{ fontWeight: activeTab === tab ? 'bold' : 'normal', fontSize: 16, color: textColor }}>
+                      {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              {/* Tab content */}
+              <View style={{ marginTop: 18, minHeight: 120, alignItems: 'center', justifyContent: 'center' }}>
+                {activeTab === 'tracks' && <Text style={{ color: textColor }}>Tracks content goes here.</Text>}
+                {activeTab === 'artists' && <Text style={{ color: textColor }}>Artists content goes here.</Text>}
+                {activeTab === 'genres' && <Text style={{ color: textColor }}>Genres content goes here.</Text>}
+              </View>
+            </View>
+          </View>
+        </Modal>
         {/* Only render subnodes in sphere */}
         <View style={styles.graphArea} {...panResponder.panHandlers}>
           {subNodes.map((node, idx) => {
             // Get sphere coordinates
             const { x, y, depth } = getSphereCoords(idx, NUM_NODES, rotation);
             const isFocused = idx === focusedIdx;
-            const scale = isFocused ? 2.5 : 0.6 + 0.4 * depth;
+            const scale = isFocused ? 3.0 : 0.6 + 0.4 * depth;
             const opacity = isFocused ? 1 : 0.12 + 0.24 * depth;
             // For all nodes, use calculated x/y from getSphereCoords
             // For focused node, override x/y so it is exactly at center
             // Offset focused node: 1% right, 30% down from center
             const nodeLeft = isFocused
-              ? centerX + SCREEN_WIDTH * 0.13 - (NODE_SIZE * scale) / 2
+              ? centerX + SCREEN_WIDTH * 0.1825 - (NODE_SIZE * scale) / 2
               : x - SCREEN_WIDTH * 0.05;
             const nodeTop = isFocused
-              ? centerY + GRAPH_HEIGHT * 0.3 - (NODE_SIZE * scale) / 2
+              ? centerY + GRAPH_HEIGHT * 0.4 - (NODE_SIZE * scale) / 2
               : y + GRAPH_HEIGHT * 0.3;
             return (
               <TouchableOpacity
@@ -211,13 +253,25 @@ const RADIUS = 260;
         </View>
         {/* Modal for node info */}
         <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={() => setModalVisible(false)}>
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <Text style={{ fontWeight: 'bold', fontSize: 20, marginBottom: 8 }}>{selectedNode?.label}</Text>
-              <Text style={{ marginBottom: 12 }}>{selectedNode?.type}</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeModalBtn}>
-                <Text style={{ color: tintColor, fontWeight: 'bold' }}>Close</Text>
+          <View style={styles.bottomModalOverlay}>
+            <View style={[styles.bottomModalContent, {
+              height: windowHeight * 0.75,
+              backgroundColor: backgroundColor,
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              shadowColor: '#222',
+              borderColor: '#ddd',
+            }] }>
+              {/* Handle bar for closing modal */}
+              <TouchableOpacity style={styles.handle} onPress={() => setModalVisible(false)}>
+                <View style={styles.handleBar} />
               </TouchableOpacity>
+              <View style={{ height: 36 }} />
+              {/* Node info content */}
+              <View style={{ alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+                <Text style={{ fontWeight: 'bold', fontSize: 20, marginBottom: 8, color: textColor }}>{selectedNode?.label}</Text>
+                <Text style={{ marginBottom: 12, color: textColor }}>{selectedNode?.type}</Text>
+              </View>
             </View>
           </View>
         </Modal>
@@ -228,6 +282,57 @@ const RADIUS = 260;
 
 // styles
 const styles = StyleSheet.create({
+  handle: {
+    alignItems: 'center',
+    paddingTop: 0,
+    paddingBottom: 2,
+    paddingHorizontal: 20,
+    width: '100%',
+  },
+  handleBar: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#bbb',
+    borderRadius: 2,
+    marginBottom: 2,
+  },
+  bottomModalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+  },
+  bottomModalContent: {
+    width: '100%',
+    padding: 24,
+    alignItems: 'center',
+    minHeight: 260,
+    elevation: 8,
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    borderWidth: 1,
+  },
+  tabBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 8,
+    borderBottomWidth: 1,
+    borderColor: '#eee',
+    paddingBottom: 4,
+  },
+  tabBtn: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 2,
+    borderColor: 'transparent',
+  },
+  tabBtnActive: {
+    borderColor: '#222',
+  },
   container: {
     flex: 1,
     padding: 0,
