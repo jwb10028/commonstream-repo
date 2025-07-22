@@ -246,7 +246,7 @@ export default function ConnectScreen() {
   const GRAPH_HEIGHT = 340;
   const centerY = GRAPH_HEIGHT / 2 + 120;
   const NUM_NODES = NUM_UI_NODES;
-const RADIUS = 260;
+  const RADIUS = 220;
 
   // Disperse nodes in latitude/longitude for sphere
   function getSphereCoords(idx: number, num: number, rot: { phi: number; theta: number }) {

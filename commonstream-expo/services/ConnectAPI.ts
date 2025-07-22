@@ -60,6 +60,9 @@ export class ConnectService {
 }
 The nodes array must contain exactly 10 nodes, each with unique and relevant information. Keep each node's description under 15 words. Do not include any extra text, comments, or formatting. Output only valid JSON.
 
+
+Each node must have a unique cover_image that is visually different from the others. Do not use different URLs for the same image, and do not return any nodes with duplicate or visually similar cover_image values in the array.
+
 If the query type is 'artist', recommend artists of similar popularity level to the input artist. Do NOT recommend artists who are significantly more popular or mainstream than the input artist (e.g., if the input is an indie artist, do not recommend major mainstream acts like Coldplay). Focus on artists with comparable audience size, recognition, or influence.
 
 If the query type is 'track', recommend songs that are:
@@ -158,15 +161,14 @@ Avoid recommending songs that are unrelated in genre, era, or artist community.`
   public static async getCompleteNodes(query: ConnectQuery): Promise<{ success: boolean; data?: ConnectResult; error?: string; errorCode?: string }> {
     const allNodes: ConnectNode[] = [];
     const seenTitles = new Set<string>();
-    let errorMsg = '';
     let attempts = 0;
     const maxAttempts = 10; // Avoid infinite loops if the API fails
     while (allNodes.length < 30 && attempts < maxAttempts) {
       const result = await this.getNodes(query);
       attempts++;
       if (!result.success || !result.data || !result.data.nodes) {
-        errorMsg = result.error || `Batch failed`;
-        break;
+        // Silently skip failed batch (including 429)
+        continue;
       }
       // Add only unique nodes by title
       for (const node of result.data.nodes) {
@@ -177,10 +179,7 @@ Avoid recommending songs that are unrelated in genre, era, or artist community.`
         }
       }
     }
-    if (allNodes.length === 30) {
-      return { success: true, data: { nodes: allNodes, query } };
-    } else {
-      return { success: false, error: errorMsg || `Only received ${allNodes.length} unique nodes after ${attempts} attempts`, errorCode: 'BATCH_INCOMPLETE' };
-    }
+    // Always return what we have, even if less than 30
+    return { success: true, data: { nodes: allNodes, query } };
   }
 }
