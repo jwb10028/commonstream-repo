@@ -45,6 +45,12 @@
         "projectId": "8fb3d174-a988-413f-b806-694078493513"
       }
     },
-    "owner": "jwb10028"
+    "owner": "jwb10028",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/8fb3d174-a988-413f-b806-694078493513"
+    }
   }
 }
