@@ -1,27 +1,51 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { Colors } from '@/constants/Colors';
+import { remoteApi } from '@/services/RemoteAPI'; // New import
+import { useSpotifyAuth } from '@/hooks/useSpotifyAuth';
 
 export default function Transport() {
+  const { tokens } = useSpotifyAuth();
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(45); // Current time in seconds
-  const [duration, setDuration] = useState(180); // Total duration in seconds
-  
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [songData, setSongData] = useState({
+    title: "Loading...",
+    artist: "Loading...",
+    coverArt: "https://picsum.photos/80/80?random=1"
+  });
+
+  // Fetch playback state from API
+  useEffect(() => {
+    const fetchPlaybackState = async () => {
+      if (!tokens) {
+        // Handle case where tokens are not available
+        return;
+      }
+      
+      const playbackState = await remoteApi.getPlaybackState(tokens.access_token);
+      console.log('Playback state response:', playbackState); // Log the full response
+      setSongData({
+        title: playbackState.item.name,
+        artist: playbackState.item.artists[0].name,
+        coverArt: playbackState.item.album.images[0].url
+      });
+      setCurrentTime(playbackState.currentTime);
+      setDuration(playbackState.duration);
+      setIsPlaying(playbackState.isPlaying);
+    };
+    
+    fetchPlaybackState();
+  }, [tokens]);
+
   const borderColor = useThemeColor({}, 'text');
   const backgroundColor = useThemeColor({}, 'background');
   const cardBackground = useThemeColor({}, 'background');
   
   // Always use day mode color for transport buttons
   const buttonColor = Colors.light.text; // '#11181C' - black
-
-  // Mock song data
-  const songData = {
-    title: "Blinding Lights",
-    artist: "The Weeknd",
-    coverArt: "https://picsum.photos/80/80?random=1" // Random image placeholder
-  };
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -30,19 +54,6 @@ export default function Transport() {
   };
 
   const progressPercentage = (currentTime / duration) * 100;
-
-  const handlePreviousTrack = () => {
-    console.log('Previous track pressed');
-  };
-
-  const handlePlayPause = () => {
-    setIsPlaying(!isPlaying);
-    console.log(isPlaying ? 'Pause pressed' : 'Play pressed');
-  };
-
-  const handleNextTrack = () => {
-    console.log('Next track pressed');
-  };
 
   return (
     <View style={styles.container}>
@@ -88,14 +99,14 @@ export default function Transport() {
       <View style={styles.transportContainer}>
         <TouchableOpacity 
           style={styles.transportButton}
-          onPress={handlePreviousTrack}
+          onPress={() => {}}
         >
           <Ionicons name="play-skip-back" size={31} color={buttonColor} />
         </TouchableOpacity>
 
         <TouchableOpacity 
           style={styles.playButton}
-          onPress={handlePlayPause}
+          onPress={() => setIsPlaying(!isPlaying)}
         >
           <Ionicons 
             name={isPlaying ? "pause" : "play"} 
@@ -107,7 +118,7 @@ export default function Transport() {
 
         <TouchableOpacity 
           style={styles.transportButton}
-          onPress={handleNextTrack}
+          onPress={() => {}}
         >
           <Ionicons name="play-skip-forward" size={31} color={buttonColor} />
         </TouchableOpacity>
