@@ -17,9 +17,11 @@ export default function StreamTimeline({
   const textColor = useThemeColor({ light: Colors.light.text, dark: Colors.dark.text }, 'text');
   const iconColor = useThemeColor({ light: Colors.light.icon, dark: Colors.dark.icon }, 'icon');
   const backgroundColor = useThemeColor({ light: Colors.light.background, dark: Colors.dark.background }, 'background');
-  
+
   // Use text color for progress fill instead of tint color
   const progressColor = textColor;
+
+  const [barWidth, setBarWidth] = useState(0);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -30,11 +32,13 @@ export default function StreamTimeline({
   const progressPercentage = (currentTime / duration) * 100;
 
   const handleProgressTouch = (event: any) => {
-    // Calculate position and convert to time for seeking
-    const { locationX } = event.nativeEvent;
-    const { width } = event.currentTarget.measure ? event.currentTarget : { width: 300 };
-    const seekTime = Math.floor((locationX / width) * duration);
-    onSeek?.(seekTime);
+    if (barWidth > 0) {
+      const { locationX } = event.nativeEvent;
+      // Calculate seek position in seconds, then convert to ms
+      const seekSeconds = Math.floor((locationX / barWidth) * duration);
+      const seekMs = seekSeconds * 1000;
+      onSeek?.(seekMs);
+    }
   };
 
   return (
@@ -44,29 +48,29 @@ export default function StreamTimeline({
         style={styles.progressContainer}
         onPress={handleProgressTouch}
         activeOpacity={0.8}
+        onLayout={e => setBarWidth(e.nativeEvent.layout.width)}
       >
-        <View style={[styles.progressTrack, { backgroundColor: iconColor + '30' }]}>
+        <View style={[styles.progressTrack, { backgroundColor: iconColor + '30' }]}> 
           <View 
-            style={[
+            style={[ 
               styles.progressFill, 
-              { backgroundColor: progressColor, width: `${progressPercentage}%` }
-            ]} 
+              { backgroundColor: progressColor, width: `${progressPercentage}%` } 
+            ]}  
           />
           <View 
-            style={[
+            style={[ 
               styles.progressThumb,
               { backgroundColor: progressColor, left: `${progressPercentage}%` }
             ]}
           />
         </View>
       </TouchableOpacity>
-      
       {/* Time Display */}
       <View style={styles.timeContainer}>
-        <Text style={[styles.timeText, { color: textColor }]}>
+        <Text style={[styles.timeText, { color: textColor }]}> 
           {formatTime(currentTime)}
         </Text>
-        <Text style={[styles.timeText, { color: iconColor }]}>
+        <Text style={[styles.timeText, { color: iconColor }]}> 
           {formatTime(duration)}
         </Text>
       </View>

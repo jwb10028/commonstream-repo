@@ -13,10 +13,9 @@ export default function PlayerScreen() {
   const { tokens } = useSpotifyAuth();
 
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isShuffled, setIsShuffled] = useState(false);
-  const [repeatMode, setRepeatMode] = useState<"off" | "all" | "one">("off");
+  const [repeatMode, setRepeatMode] = useState<"track" | "context" | "off">("off");
   const [volume, setVolume] = useState(50); // New property for volume
-  const [shuffled, setShuffled] = useState(false); // New property for shuffle mode
+  const [shuffled, setShuffled] = useState(false); // Shuffle state
 
   // Theme colors with explicit dark mode constants
   const backgroundColor = useThemeColor(
@@ -67,6 +66,8 @@ export default function PlayerScreen() {
     setProgress(playbackState.progress_ms);
     setIsPlaying(playbackState.is_playing);
     setDeviceId(playbackState.device.id);
+    setRepeatMode(playbackState.repeat_state);
+    setShuffled(playbackState.shuffle_state);
   };
 
   useEffect(() => {
@@ -113,26 +114,31 @@ export default function PlayerScreen() {
     console.log("Volume set to:", volume);
   };
 
-  const handleShuffleToggle = () => {
-    setShuffled(!shuffled); // Toggle shuffle mode without calling handleShuffle
-    console.log("Shuffle mode toggled:", !shuffled);
-  };
-
   const handleShuffle = () => {
-    setIsShuffled(shuffled); // Use the new 'shuffled' state
-    console.log("Shuffle toggled:", !isShuffled);
+    const newShuffle = !shuffled;
+    setShuffled(newShuffle);
+    if (tokens?.access_token) {
+      remoteApi.remoteShuffle(tokens.access_token, newShuffle);
+    }
+    console.log("Shuffle mode toggled:", newShuffle);
   };
 
   const handleRepeat = () => {
-    const modes: ("off" | "all" | "one")[] = ["off", "all", "one"];
+    const modes: ("track" | "context" | "off")[] = ["track", "context", "off"];
     const currentIndex = modes.indexOf(repeatMode);
     const nextMode = modes[(currentIndex + 1) % modes.length];
     setRepeatMode(nextMode);
+    if (tokens?.access_token) {
+        remoteApi.remoteRepeatMode(tokens.access_token, nextMode);
+    }
     console.log("Repeat mode:", nextMode);
   };
 
   const handleSeek = (time: number) => {
     setProgress(time);
+    if (tokens?.access_token) {
+        remoteApi.remoteSeek(tokens.access_token, time);
+    }
     console.log("Seeking to:", time);
   };
 
@@ -192,7 +198,7 @@ export default function PlayerScreen() {
             onNext={handleNext}
             onShuffle={handleShuffle}
             onRepeat={handleRepeat}
-            isShuffled={shuffled} // Pass the shuffled state to StreamTransport
+            isShuffled={shuffled}
             repeatMode={repeatMode}
           />
         </View>

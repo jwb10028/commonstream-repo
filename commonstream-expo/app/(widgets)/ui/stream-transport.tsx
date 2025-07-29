@@ -12,7 +12,7 @@ interface StreamTransportProps {
   onShuffle?: () => void;
   onRepeat?: () => void;
   isShuffled?: boolean;
-  repeatMode?: 'off' | 'all' | 'one';
+  repeatMode?: 'track' | 'context' | 'off';
 }
 
 export default function StreamTransport({
@@ -22,7 +22,7 @@ export default function StreamTransport({
   onNext,
   onShuffle,
   onRepeat,
-  isShuffled = false,
+  isShuffled,
   repeatMode = 'off'
 }: StreamTransportProps) {
   const textColor = useThemeColor({ light: Colors.light.text, dark: Colors.dark.text }, 'text');
@@ -54,9 +54,9 @@ export default function StreamTransport({
 
   const getRepeatIcon = () => {
     switch (repeatMode) {
-      case 'one':
+      case 'track':
         return 'repeat-outline';
-      case 'all':
+      case 'context':
         return 'repeat';
       default:
         return 'repeat';
@@ -87,7 +87,7 @@ export default function StreamTransport({
             size={22} 
             color={repeatMode !== 'off' ? playButtonColor : iconColor} 
           />
-          {repeatMode === 'one' && (
+          {repeatMode === 'track' && (
             <View style={[styles.repeatIndicator, { backgroundColor: playButtonColor }]}>
               <Ionicons name="finger-print" size={8} color={backgroundColor} />
             </View>
