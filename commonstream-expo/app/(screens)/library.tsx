@@ -7,6 +7,7 @@ import { Colors } from '@/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 import { spotifyApi } from '@/services/SpotifyAPI';
 import { useSpotifyAuth } from '@/hooks/useSpotifyAuth';
+import { remoteApi } from "@/services/RemoteAPI";
 
 export default function LibraryScreen() {
   const [artists, setArtists] = React.useState<any[]>([]);
@@ -20,6 +21,9 @@ export default function LibraryScreen() {
   const [playlists, setPlaylists] = React.useState<any[]>([]);
   const [loadingPlaylists, setLoadingPlaylists] = React.useState(false);
   const [playlistError, setPlaylistError] = React.useState<string | null>(null);
+  const [selectedPlaylist, setSelectedPlaylist] = React.useState<any | null>(null);
+  const [loadingSelectedPlaylist, setLoadingSelectedPlaylist] = React.useState(false);
+  const [selectedPlaylistError, setSelectedPlaylistError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     const fetchPlaylists = async () => {
@@ -28,6 +32,7 @@ export default function LibraryScreen() {
         setPlaylistError(null);
         try {
           const data = await spotifyApi.getUserPlaylists(tokens.access_token, 20, 0);
+          //console.log('Playlists Response:', data);
           setPlaylists(data.items || []);
         } catch (err: any) {
           setPlaylistError(err.message || 'Failed to fetch playlists');
@@ -82,15 +87,77 @@ export default function LibraryScreen() {
   const libraryTabs = [
     { id: 'playlists', name: 'Playlists', icon: 'list' as const },
     { id: 'artists', name: 'Artists', icon: 'mic' as const },
-    { id: 'tracks', name: 'Tracks', icon: 'musical-notes' as const },
+    { id: 'tracks', name: 'Favorites', icon: 'musical-notes' as const },
     { id: 'recently-played', name: 'Recents', icon: 'time' as const },
   ];
 
   // Dummy content for each tab
   const tabContent: Record<string, React.ReactNode> = {
     playlists: (
-      <View style={{ width: '100%', alignItems: 'center', marginTop: 0, minHeight: 550 }}>
-        {loadingPlaylists ? (
+      <View style={{ width: '100%', alignItems: 'center', marginTop: 50, minHeight: 600 }}>
+        {selectedPlaylist ? (
+          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: backgroundColor + 'ee', zIndex: 10, justifyContent: 'flex-start', alignItems: 'center', padding: 0, width: '100%' }}>
+            {loadingSelectedPlaylist ? (
+              <ThemedText style={{ color: textColor, fontSize: 18 }}>Loading playlist...</ThemedText>
+            ) : selectedPlaylistError ? (
+              <ThemedText style={{ color: 'red', fontSize: 16 }}>{selectedPlaylistError}</ThemedText>
+            ) : (
+              <View style={{ width: '100%', flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                {/* Playlist cover */}
+                {selectedPlaylist.images && selectedPlaylist.images[0]?.url ? (
+                  <Image source={{ uri: selectedPlaylist.images[0].url }} style={{ width: 100, height: 100, borderRadius: 12, marginRight: 18 }} resizeMode="cover" />
+                ) : (
+                  <Ionicons name="musical-notes" size={64} color={iconColor} style={{ marginRight: 18 }} />
+                )}
+                {/* Playlist info */}
+                <View style={{ flex: 1, flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center' }}>
+                  <ThemedText
+                    style={{ color: textColor, fontSize: 22, fontWeight: 'bold', marginBottom: 4 }}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                    {selectedPlaylist.name}
+                  </ThemedText>
+                  <ThemedText style={{ color: iconColor, fontSize: 16, marginBottom: 6 }}>{selectedPlaylist.owner?.display_name || 'Spotify User'}</ThemedText>
+                  <ThemedText style={{ color: iconColor, fontSize: 14 }}>Tracks: {selectedPlaylist.tracks?.total || 0}</ThemedText>
+                </View>
+                <TouchableOpacity onPress={() => setSelectedPlaylist(null)} style={{ marginLeft: 12, alignSelf: 'flex-start' }}>
+                  <Ionicons name="close" size={28} color={iconColor} />
+                </TouchableOpacity>
+              </View>
+            )}
+            {/* Playlist tracks list */}
+            <ScrollView style={{ alignSelf: 'stretch', width: '100%', maxHeight: 450, paddingHorizontal: 0 }} contentContainerStyle={{ paddingBottom: 24 }}>
+              {selectedPlaylist.tracks.items.map((item: any, idx: number) => (
+                <TouchableOpacity
+                  key={item.track?.id || idx}
+                  style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 4 }}
+                  onPress={async () => {
+                    if (!tokens?.access_token || !item.track?.uri) return;
+                    try {
+                      await remoteApi.remoteStartPlayback(tokens.access_token, item.track.uri);
+                      // Optionally show feedback to user here
+                    } catch (err) {
+                      // Optionally handle error here
+                      console.error('Playback error:', err);
+                    }
+                  }}
+                  activeOpacity={0.8}
+                >
+                  {item.track?.album?.images && item.track.album.images[0]?.url ? (
+                    <Image source={{ uri: item.track.album.images[0].url }} style={{ width: 36, height: 36, borderRadius: 6, backgroundColor: '#eee', marginRight: 10 }} resizeMode="cover" />
+                  ) : (
+                    <Ionicons name="musical-notes" size={24} color={iconColor} style={{ marginRight: 10 }} />
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <ThemedText style={{ color: textColor, fontSize: 15, fontWeight: '600' }}>{item.track?.name}</ThemedText>
+                    <ThemedText style={{ color: iconColor, fontSize: 13 }}>{item.track?.artists?.map((a: any) => a.name).join(', ') || 'Artist'}</ThemedText>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        ) : loadingPlaylists ? (
           <ThemedText style={{ color: textColor, fontSize: 16 }}>Loading playlists...</ThemedText>
         ) : playlistError ? (
           <ThemedText style={{ color: 'red', fontSize: 16 }}>{playlistError}</ThemedText>
@@ -99,7 +166,25 @@ export default function LibraryScreen() {
         ) : (
           <ScrollView style={{ width: '100%' }} contentContainerStyle={{ paddingBottom: 24 }}>
             {playlists.map((pl) => (
-              <View key={pl.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 8 }}>
+              <TouchableOpacity
+                key={pl.id}
+                style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 8 }}
+                onPress={async () => {
+                  if (!tokens?.access_token) return;
+                  setLoadingSelectedPlaylist(true);
+                  setSelectedPlaylistError(null);
+                  try {
+                    const playlistData = await spotifyApi.getPlaylist(tokens.access_token, pl.id);
+                    //console.log('Playlist Data: ', playlistData)
+                    setSelectedPlaylist(playlistData);
+                  } catch (err: any) {
+                    setSelectedPlaylistError(err.message || 'Failed to fetch playlist');
+                  } finally {
+                    setLoadingSelectedPlaylist(false);
+                  }
+                }}
+                activeOpacity={0.85}
+              >
                 {pl.images && pl.images[0]?.url ? (
                   <View style={{ marginRight: 14 }}>
                     <Image
@@ -116,14 +201,14 @@ export default function LibraryScreen() {
                   <ThemedText style={{ color: iconColor, fontSize: 13 }}>{pl.owner?.display_name || 'Spotify User'}</ThemedText>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={iconColor} />
-              </View>
+              </TouchableOpacity>
             ))}
           </ScrollView>
         )}
       </View>
     ),
     artists: (
-      <View style={{ width: '100%', alignItems: 'center', marginTop: 0, minHeight: 550 }}>
+      <View style={{ width: '100%', alignItems: 'center', marginTop: 50, minHeight: 600 }}>
         {loadingArtists ? (
           <ThemedText style={{ color: textColor, fontSize: 16 }}>Loading artists...</ThemedText>
         ) : artistsError ? (
@@ -157,7 +242,7 @@ export default function LibraryScreen() {
       </View>
     ),
     tracks: (
-      <View style={{ width: '100%', alignItems: 'center', marginTop: 0, minHeight: 550 }}>
+      <View style={{ width: '100%', alignItems: 'center', marginTop: 50, minHeight: 600 }}>
         {loadingTracks ? (
           <ThemedText style={{ color: textColor, fontSize: 16 }}>Loading tracks...</ThemedText>
         ) : tracksError ? (
@@ -167,7 +252,21 @@ export default function LibraryScreen() {
         ) : (
           <ScrollView style={{ width: '100%' }} contentContainerStyle={{ paddingBottom: 24 }}>
             {tracks.map((track) => (
-              <View key={track.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 8 }}>
+              <TouchableOpacity
+                key={track.id}
+                style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 8 }}
+                onPress={async () => {
+                  if (!tokens?.access_token || !track.uri) return;
+                  try {
+                    await remoteApi.remoteStartPlayback(tokens.access_token, track.uri);
+                    // Optionally show feedback to user here
+                  } catch (err) {
+                    // Optionally handle error here
+                    console.error('Playback error:', err);
+                  }
+                }}
+                activeOpacity={0.85}
+              >
                 {track.album?.images && track.album.images[0]?.url ? (
                   <View style={{ marginRight: 14 }}>
                     <Image
@@ -183,8 +282,7 @@ export default function LibraryScreen() {
                   <ThemedText style={{ color: textColor, fontSize: 16, fontWeight: '600' }}>{track.name}</ThemedText>
                   <ThemedText style={{ color: iconColor, fontSize: 13 }}>{track.artists?.map((a: any) => a.name).join(', ') || 'Track'}</ThemedText>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color={iconColor} />
-              </View>
+              </TouchableOpacity>
             ))}
           </ScrollView>
         )}
@@ -230,8 +328,8 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   header: {
-    paddingTop: 20,
-    paddingBottom: 30,
+    paddingTop: 4,
+    paddingBottom: 8,
   },
   title: {
     fontSize: 28,

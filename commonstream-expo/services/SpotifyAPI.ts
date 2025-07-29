@@ -31,6 +31,10 @@ class SpotifyApiService {
     return this.makeRequest(`/me/playlists?limit=${limit}&offset=${offset}`, accessToken);
   }
 
+  async getPlaylist(accessToken: string, playlist_id: string) {
+    return this.makeRequest(`/playlists/${playlist_id}`, accessToken);
+  }
+
   async getUserTopTracks(accessToken: string, timeRange = 'medium_term', limit = 20) {
     return this.makeRequest(`/me/top/tracks?time_range=${timeRange}&limit=${limit}`, accessToken);
   }

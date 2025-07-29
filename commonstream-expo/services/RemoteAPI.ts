@@ -44,6 +44,33 @@ class RemoteApiService {
     return response.json();
   }
 
+  // start playback - PUT
+  async remoteStartPlayback(accessToken: string, uri: string, deviceId?: string): Promise<boolean> {
+    const isTrack = uri.startsWith('spotify:track:');
+    const body: any = isTrack
+      ? { uris: [uri] }
+      : { context_uri: uri };
+  
+    if (deviceId) {
+      body.device_id = deviceId;
+    }
+  
+    const response = await fetch(`${SPOTIFY_CONFIG.ENDPOINTS.API_BASE}/me/player/play`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+  
+    if (!response.ok) {
+      const errorData = await response.text();
+      throw new Error(`Failed to start playback: ${response.status} ${errorData}`);
+    }
+    return true;
+  }
+
   // skip to next - POST
   async remoteNext(accessToken: string, deviceId?: string): Promise<any> {
     const response = await fetch(`${SPOTIFY_CONFIG.ENDPOINTS.API_BASE}/me/player/next`, {
