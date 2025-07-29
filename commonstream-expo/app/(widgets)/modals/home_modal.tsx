@@ -39,7 +39,7 @@ export default function HomeModal({ visible, onClose }: HomeModalProps) {
 
   const navigationOptions = [
     { name: 'Player', id: 'audio-player', icon: 'play-circle' as const, description: 'Manage active sources' },
-    { name: 'Connect', id: 'stream-mix', icon: 'play-circle' as const, description: 'Curated playlists & mixes' },
+    { name: 'Connect', id: 'stream-mix', icon: 'analytics-outline' as const, description: 'Create your footprint' },
     { name: 'Library', id: 'library', icon: 'library' as const, description: 'Your saved content' },
     { name: 'Discover', id: 'discover', icon: 'compass' as const, description: 'Find new music & artists' },
     { name: 'Profile', id: 'profile', icon: 'person' as const, description: 'Your account & preferences' },

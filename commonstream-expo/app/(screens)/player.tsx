@@ -8,8 +8,10 @@ import StreamTimeline from "@/app/(widgets)/ui/stream-timeline";
 import StreamTransport from "@/app/(widgets)/ui/stream-transport";
 import { remoteApi } from "@/services/RemoteAPI";
 import { useSpotifyAuth } from "@/hooks/useSpotifyAuth";
+import PlayerModal from "@/app/(widgets)/modals/player_modal";
 
 export default function PlayerScreen() {
+  const [playerModalVisible, setPlayerModalVisible] = useState(false);
   const { tokens } = useSpotifyAuth();
 
   const [isPlaying, setIsPlaying] = useState(false);
@@ -46,6 +48,18 @@ export default function PlayerScreen() {
   const [duration, setDuration] = useState(0);
   const [progress, setProgress] = useState(0);
   const [deviceId, setDeviceId] = useState("Empty Id");
+  const [deviceList, setDeviceList ] = useState([
+    {
+      id: "loading",
+      is_active: false,
+      is_private_session: false,
+      is_restricted: false,
+      name: "Device Name",
+      type: "Device Type",
+      volume_percent: 0,
+      supports_volume: false,
+    }
+  ]);
 
   const fetchPlaybackState = async () => {
     if (!tokens) {
@@ -54,7 +68,7 @@ export default function PlayerScreen() {
     }
 
     const playbackState = await remoteApi.getPlaybackState(tokens.access_token);
-    console.log("Playback state response:", playbackState); // Log the full response
+    //console.log("Playback state response:", playbackState); // Log the full response
     setItemData({
       title: playbackState.item.name,
       artist: playbackState.item.artists[0].name,
@@ -142,6 +156,24 @@ export default function PlayerScreen() {
     console.log("Seeking to:", time);
   };
 
+  const handleDevices = async () => {
+    if (tokens?.access_token) {
+      try {
+        const response = await remoteApi.getAvailableDevices(tokens.access_token);
+        // Spotify returns { devices: [...] }
+        if (response && Array.isArray(response.devices)) {
+          setDeviceList(response.devices);
+        } else {
+          setDeviceList([]);
+        }
+        // console.log(response);
+      } catch (error) {
+        console.error("Failed to fetch devices:", error);
+      }
+    }
+    setPlayerModalVisible(true);
+  };
+  
   return (
     <ThemedView style={styles.container}>
       <ScrollView
@@ -200,9 +232,18 @@ export default function PlayerScreen() {
             onRepeat={handleRepeat}
             isShuffled={shuffled}
             repeatMode={repeatMode}
+            onDevices={handleDevices}
           />
         </View>
       </ScrollView>
+      {/* Player Modal */}
+      <PlayerModal
+        visible={playerModalVisible}
+        onClose={() => setPlayerModalVisible(false)}
+        deviceList={deviceList}
+        tokens={tokens ?? { access_token: "" }}
+        remoteApi={remoteApi}
+      />
     </ThemedView>
   );
 }
@@ -240,14 +281,14 @@ const styles = StyleSheet.create({
     elevation: 15,
   },
   coverArt: {
-    width: 200,
-    height: 200,
+    width: 270,
+    height: 270,
     borderRadius: 16,
     borderWidth: 1,
   },
   trackInfo: {
     alignItems: "center",
-    marginBottom: 40,
+    marginBottom: 0,
     paddingHorizontal: 20,
     height:120
   },

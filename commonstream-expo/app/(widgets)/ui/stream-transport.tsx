@@ -11,6 +11,7 @@ interface StreamTransportProps {
   onNext?: () => void;
   onShuffle?: () => void;
   onRepeat?: () => void;
+  onDevices?: () => void;
   isShuffled?: boolean;
   repeatMode?: 'track' | 'context' | 'off';
 }
@@ -22,6 +23,7 @@ export default function StreamTransport({
   onNext,
   onShuffle,
   onRepeat,
+  onDevices,
   isShuffled,
   repeatMode = 'off'
 }: StreamTransportProps) {
@@ -52,6 +54,10 @@ export default function StreamTransport({
     onRepeat?.();
   };
 
+  const handleDevices = () => {
+    onDevices?.();
+  };
+
   const getRepeatIcon = () => {
     switch (repeatMode) {
       case 'track':
@@ -67,6 +73,19 @@ export default function StreamTransport({
     <View style={styles.container}>
       {/* Secondary Controls */}
       <View style={styles.secondaryControls}>
+        {/* Speaker Button */}
+        <TouchableOpacity 
+          style={styles.secondaryButton}
+          onPress={handleDevices} // TODO: Add handler if needed
+        >
+          <Ionicons 
+            name="desktop-outline" 
+            size={22} 
+            color={iconColor} 
+          />
+        </TouchableOpacity>
+
+        {/* Shuffle Button */}
         <TouchableOpacity 
           style={styles.secondaryButton}
           onPress={handleShuffle}
@@ -78,6 +97,7 @@ export default function StreamTransport({
           />
         </TouchableOpacity>
 
+        {/* Repeat Button */}
         <TouchableOpacity 
           style={styles.secondaryButton}
           onPress={handleRepeat}
@@ -88,7 +108,7 @@ export default function StreamTransport({
             color={repeatMode !== 'off' ? playButtonColor : iconColor} 
           />
           {repeatMode === 'track' && (
-            <View style={[styles.repeatIndicator, { backgroundColor: playButtonColor }]}>
+            <View style={[styles.repeatIndicator, { backgroundColor: playButtonColor }]}> 
               <Ionicons name="finger-print" size={8} color={backgroundColor} />
             </View>
           )}
