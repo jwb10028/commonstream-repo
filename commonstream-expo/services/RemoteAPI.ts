@@ -199,15 +199,6 @@ class RemoteApiService {
     // Spotify returns empty response on success
     return true;
   }
-
-
-
-
-  // =================================
-  // UTILITY FUNCS
-  // =================================
-
-
 }
 
 export const remoteApi = new RemoteApiService();
