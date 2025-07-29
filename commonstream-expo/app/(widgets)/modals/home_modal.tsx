@@ -38,6 +38,7 @@ export default function HomeModal({ visible, onClose }: HomeModalProps) {
   const styles = createStyles(backgroundColor, textColor, iconColor, tintColor);
 
   const navigationOptions = [
+    { name: 'Player', id: 'audio-player', icon: 'play-circle' as const, description: 'Manage active sources' },
     { name: 'Connect', id: 'stream-mix', icon: 'play-circle' as const, description: 'Curated playlists & mixes' },
     { name: 'Library', id: 'library', icon: 'library' as const, description: 'Your saved content' },
     { name: 'Discover', id: 'discover', icon: 'compass' as const, description: 'Find new music & artists' },
@@ -72,6 +73,8 @@ export default function HomeModal({ visible, onClose }: HomeModalProps) {
       router.push('/(screens)/discover');
     } else if (optionId === 'stream-mix') {
       router.push('/(screens)/connect');
+    } else if (optionId === 'audio-player') {
+      router.push('/(screens)/player');
     }
     // Add more navigation cases here as you implement other screens
   };
