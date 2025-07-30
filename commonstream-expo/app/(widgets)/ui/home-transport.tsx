@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, Image } from 'react-native';
+import StreamTimeline from './stream-timeline';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { Colors } from '@/constants/Colors';
@@ -11,34 +12,59 @@ export default function Transport() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [progress, setProgress] = useState(0);
   const [songData, setSongData] = useState({
     title: "Loading...",
     artist: "Loading...",
-    coverArt: "https://picsum.photos/80/80?random=1"
+    album: "Loading...",
+    album_year: "Loading...",
+    album_cover: "https://picsum.photos/80/80?random=1",
   });
+  const [deviceId, setDeviceId] = useState("Empty Id");
+  const [repeatMode, setRepeatMode] = useState<"track" | "context" | "off">("off");
+  const [shuffled, setShuffled] = useState(false);
 
   // Fetch playback state from API
-  useEffect(() => {
-    const fetchPlaybackState = async () => {
+  const fetchPlaybackState = async () => {
       if (!tokens) {
         // Handle case where tokens are not available
         return;
       }
-      
+  
       const playbackState = await remoteApi.getPlaybackState(tokens.access_token);
-      console.log('Playback state response:', playbackState); // Log the full response
+      //console.log("Playback state response:", playbackState); // Log the full response
       setSongData({
         title: playbackState.item.name,
         artist: playbackState.item.artists[0].name,
-        coverArt: playbackState.item.album.images[0].url
+        album: playbackState.item.album.name,
+        album_year: playbackState.item.album.release_date,
+        album_cover: playbackState.item.album.images[0].url,
       });
-      setCurrentTime(playbackState.currentTime);
-      setDuration(playbackState.duration);
-      setIsPlaying(playbackState.isPlaying);
+      setDuration(Math.floor(playbackState.item.duration_ms / 1000)); // seconds
+      setProgress(playbackState.progress_ms);
+      setCurrentTime(Math.floor(playbackState.progress_ms / 1000)); // seconds
+      setIsPlaying(playbackState.is_playing);
+      setDeviceId(playbackState.device.id);
+      setRepeatMode(playbackState.repeat_state);
+      setShuffled(playbackState.shuffle_state);
     };
-    
-    fetchPlaybackState();
-  }, [tokens]);
+  
+    useEffect(() => {
+      fetchPlaybackState();
+    }, [tokens]); // Only run when tokens change
+  
+    // Poll for playback state update every 2 seconds
+    const pollPlaybackState = useCallback(() => {
+      if (tokens) {
+        fetchPlaybackState();
+      }
+    }, [tokens, fetchPlaybackState]);
+  
+    useEffect(() => {
+      const intervalId = setInterval(pollPlaybackState, 1000);
+      return () => clearInterval(intervalId); // Cleanup function to clear the interval on unmount
+    }, [pollPlaybackState]);
+  
 
   const borderColor = useThemeColor({}, 'text');
   const backgroundColor = useThemeColor({}, 'background');
@@ -47,50 +73,61 @@ export default function Transport() {
   // Always use day mode color for transport buttons
   const buttonColor = Colors.light.text; // '#11181C' - black
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  // Seeking handler for timeline
+  const handleSeek = (time: number) => {
+    setProgress(time);
+    if (tokens?.access_token) {
+        remoteApi.remoteSeek(tokens.access_token, time);
+    }
+    console.log("Seeking to:", time);
   };
 
-  const progressPercentage = (currentTime / duration) * 100;
+  const handlePlayPause = () => {
+    setIsPlaying(!isPlaying);
+    if (tokens?.access_token) {
+        remoteApi.remotePlayback(tokens?.access_token, isPlaying, deviceId);
+    }
+    console.log(isPlaying ? "Pause pressed" : "Play pressed");
+  };
+
+  const handlePrevious = () => {
+    if (tokens?.access_token) {
+        remoteApi.remotePrev(tokens.access_token, deviceId);
+    }
+    console.log("Previous track pressed");
+  };
+
+  const handleNext = () => {
+    if (tokens?.access_token) {
+        remoteApi.remoteNext(tokens.access_token, deviceId);
+    }
+    console.log("Next track pressed");
+  };
 
   return (
     <View style={styles.container}>
       {/* Music Info Card */}
-      <View style={[styles.musicCard, { backgroundColor: cardBackground, borderColor }]}>
+      <View style={[styles.musicCard, { backgroundColor: cardBackground, borderColor }]}> 
         <Image 
-          source={{ uri: songData.coverArt }}
+          source={{ uri: songData.album_cover }}
           style={styles.coverArt}
         />
-        <View style={styles.songInfo}>
-          <Text style={[styles.songTitle, { color: borderColor }]} numberOfLines={1}>
-            {songData.title}
-          </Text>
-          <Text style={[styles.artistName, { color: borderColor }]} numberOfLines={1}>
-            {songData.artist}
-          </Text>
-          
-          {/* Progress Bar */}
-          <View style={styles.progressContainer}>
-            <View style={[styles.progressTrack, { backgroundColor: borderColor, opacity: 0.3 }]}>
-              <View 
-                style={[
-                  styles.progressFill, 
-                  { backgroundColor: borderColor, width: `${progressPercentage}%` }
-                ]} 
-              />
-            </View>
+        <View style={styles.infoColumn}>
+          <View style={styles.songInfo}>
+            <Text style={[styles.songTitle, { color: borderColor }]} numberOfLines={1}>
+              {songData.title}
+            </Text>
+            <Text style={[styles.artistName, { color: borderColor }]} numberOfLines={1}>
+              {songData.artist}
+            </Text>
           </View>
-          
-          {/* Time Display */}
-          <View style={styles.timeContainer}>
-            <Text style={[styles.timeText, { color: borderColor }]}>
-              {formatTime(currentTime)}
-            </Text>
-            <Text style={[styles.timeText, { color: borderColor }]}>
-              {formatTime(duration)}
-            </Text>
+          <View style={styles.timelineWrapper}>
+            {/* Timeline Bar (replaces old progress bar and time display) */}
+            <StreamTimeline 
+              currentTime={currentTime}
+              duration={duration}
+              onSeek={handleSeek}
+            />
           </View>
         </View>
       </View>
@@ -99,14 +136,14 @@ export default function Transport() {
       <View style={styles.transportContainer}>
         <TouchableOpacity 
           style={styles.transportButton}
-          onPress={() => {}}
+          onPress={handlePrevious}
         >
           <Ionicons name="play-skip-back" size={31} color={buttonColor} />
         </TouchableOpacity>
 
         <TouchableOpacity 
           style={styles.playButton}
-          onPress={() => setIsPlaying(!isPlaying)}
+          onPress={handlePlayPause}
         >
           <Ionicons 
             name={isPlaying ? "pause" : "play"} 
@@ -118,7 +155,7 @@ export default function Transport() {
 
         <TouchableOpacity 
           style={styles.transportButton}
-          onPress={() => {}}
+          onPress={handleNext}
         >
           <Ionicons name="play-skip-forward" size={31} color={buttonColor} />
         </TouchableOpacity>
@@ -136,11 +173,12 @@ const styles = StyleSheet.create({
   },
   musicCard: {
     flexDirection: 'row',
-    padding: 35, // Increased from 28 for more internal spacing
+    alignItems: 'flex-start',
+    padding: 24,
     borderRadius: 12,
-    marginBottom: -65, // WILL NEED TO ADJUST LATER QUICK FIX
-    width: '110%', // Match the query box width exactly
-    minHeight: 195, // Increased from 145 to make it 35% taller
+    marginBottom: -65,
+    width: '100%',
+    minHeight: 220,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -148,7 +186,13 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.15,
     shadowRadius: 8,
-    elevation: 8, // For Android shadow
+    elevation: 8,
+  },
+  infoColumn: {
+    flex: 1,
+    flexDirection: 'column',
+    justifyContent: 'center',
+    marginLeft: 16,
   },
   coverArt: {
     width: 80,
@@ -157,9 +201,7 @@ const styles = StyleSheet.create({
     marginRight: 15,
   },
   songInfo: {
-    flex: 1,
-    justifyContent: 'flex-start', // Changed from space-between to start
-    height: 80, // Match the cover art height exactly
+    marginBottom: 8,
   },
   songTitle: {
     fontSize: 16,
@@ -212,5 +254,13 @@ const styles = StyleSheet.create({
   },
   playIcon: {
     marginLeft: 3, // Slight offset for play icon to look more centered
+  },
+  timelineWrapper: {
+    width: '115%',
+    maxWidth: 340,
+    alignSelf: 'flex-start',
+    marginTop: 0,
+    marginBottom: 0,
+    marginLeft: -15, 
   },
 });
