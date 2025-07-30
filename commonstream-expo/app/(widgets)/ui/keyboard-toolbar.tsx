@@ -7,9 +7,12 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 interface KeyboardToolbarProps {
   visible: boolean;
   onDone?: () => void;
+  onVoiceActivation?: () => void;
+  onLoopbackListening?: () => void;
+  onAddMedia?: () => void;
 }
 
-export default function KeyboardToolbar({ visible, onDone }: KeyboardToolbarProps) {
+export default function KeyboardToolbar({ visible, onDone, onVoiceActivation, onLoopbackListening, onAddMedia }: KeyboardToolbarProps) {
   const backgroundColor = useThemeColor({}, 'background');
   const borderColor = useThemeColor({}, 'text');
   const textColor = useThemeColor({}, 'text');
@@ -19,12 +22,47 @@ export default function KeyboardToolbar({ visible, onDone }: KeyboardToolbarProp
     onDone?.();
   };
 
+  const handleVoiceActivation = () => {
+    // Placeholder for voice activation logic
+    onVoiceActivation?.();
+  }
+
+  const handleLoopbackListening = () => {
+    // Placeholder for loopback listening logic
+    onLoopbackListening?.();
+  }
+
+  const handleAddMedia = () => {
+    // Placeholder for add media logic
+    onAddMedia?.();
+  }
+
   if (!visible) return null;
 
   return (
     <View style={[styles.toolbar, { backgroundColor, borderTopColor: borderColor }]}>
       <View style={styles.leftSection}>
-        {/* You can add additional buttons here if needed */}
+        <TouchableOpacity 
+          style={styles.doneButton}
+          onPress={handleVoiceActivation}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="mic" size={24} color={textColor} />
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.doneButton}
+          onPress={handleLoopbackListening}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="refresh-circle-outline" size={24} color={textColor} />
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.doneButton}
+          onPress={handleAddMedia}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="add-outline" size={24} color={textColor} />
+        </TouchableOpacity>
       </View>
       
       <View style={styles.centerSection}>
@@ -37,7 +75,7 @@ export default function KeyboardToolbar({ visible, onDone }: KeyboardToolbarProp
           onPress={handleDone}
           activeOpacity={0.7}
         >
-          <Ionicons name="close" size={20} color={textColor} />
+          <Ionicons name="close" size={24} color={textColor} />
         </TouchableOpacity>
       </View>
     </View>
@@ -49,7 +87,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 4,
     paddingVertical: 8, // Reduced from 12 to 8 to prevent button cutoff
     borderTopWidth: 0, // Removed top border
     height: 53, // Increased from 44 to make it 20% taller
@@ -59,6 +97,8 @@ const styles = StyleSheet.create({
   leftSection: {
     flex: 1,
     alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: 5, // Added gap between buttons
   },
   centerSection: {
     flex: 1,

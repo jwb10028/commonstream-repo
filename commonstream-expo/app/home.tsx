@@ -194,30 +194,6 @@ export default function HomeScreen() {
               <Ionicons name="paper-plane" size={20} color={borderColor} />
             </TouchableOpacity>
           </View>
-          
-          {/* Circular Action Buttons */}
-          <View style={styles.buttonRow}>
-            <TouchableOpacity 
-              style={[styles.circularButton, { backgroundColor: backgroundColor }]}
-              onPress={handleVoiceActivation}
-            >
-              <Ionicons name="mic" size={24} color={borderColor} />
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.circularButton, { backgroundColor: backgroundColor }]}
-              onPress={handleLoopbackListening}
-            >
-              <Ionicons name="repeat" size={24} color={borderColor} />
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.circularButton, { backgroundColor: backgroundColor }]}
-              onPress={handleAddMedia}
-            >
-              <Ionicons name="add-circle" size={24} color={borderColor} />
-            </TouchableOpacity>
-          </View>
         </View>
         
         <HomeModal 
@@ -241,6 +217,9 @@ export default function HomeScreen() {
       <KeyboardToolbar 
         visible={isKeyboardVisible}
         onDone={() => setQueryText('')}
+        onVoiceActivation={handleVoiceActivation}
+        onLoopbackListening={handleLoopbackListening}
+        onAddMedia={handleAddMedia}
       />
     </KeyboardAvoidingView>
   );
@@ -306,27 +285,5 @@ const styles = StyleSheet.create({
     padding: 8,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    width: '100%',
-    marginTop: 10,
-  },
-  circularButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: 'rgba(0,0,0,0.1)',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
   },
 });
