@@ -43,7 +43,6 @@ export default function HomeModal({ visible, onClose }: HomeModalProps) {
     { name: 'Library', id: 'library', icon: 'library' as const, description: 'Your saved content' },
     { name: 'Discover', id: 'discover', icon: 'compass' as const, description: 'Find new music & artists' },
     { name: 'Profile', id: 'profile', icon: 'person' as const, description: 'Your account & preferences' },
-    { name: 'Linked Devices', id: 'linked-devices', icon: 'phone-portrait' as const, description: 'Manage connected devices' },
     { name: 'Settings', id: 'settings', icon: 'settings' as const, description: 'App configuration' },
   ];
 
