@@ -5,7 +5,6 @@ import { ThemedView } from '@/components/ThemedView';
 import HomeModal from './(widgets)/modals/home_modal';
 import { QueryModal } from './(widgets)/modals/query_modal';
 import Glow from './(widgets)/ui/glow';
-import Transport from './(widgets)/ui/home-transport';
 import KeyboardToolbar from './(widgets)/ui/keyboard-toolbar';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColor } from '@/hooks/useThemeColor';
@@ -170,11 +169,6 @@ export default function HomeScreen() {
       <View style={[styles.mainContent, { backgroundColor: '#fff' }]}>
         <Glow />
         <View style={styles.content}>
-          {/* Audio Transport Controls */}
-          <View style={styles.transportWrapper}>
-            <Transport />
-          </View>
-          
           {/* LLM-style Query Box */}
           <View style={[styles.queryContainer, { borderColor, backgroundColor }]}>
             <TextInput
