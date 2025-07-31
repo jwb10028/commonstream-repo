@@ -24,6 +24,8 @@ export default function AuthScreen() {
     }
   }, [isAuthenticated]);
 
+  // login handle currently checks spotify oauth,
+  // but we need to edit to check user credentials in sqlite instance
   const handleLogin = async () => {
     try {
       await login();
