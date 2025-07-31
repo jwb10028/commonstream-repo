@@ -9,10 +9,10 @@ import { useSpotifyAuth } from "@/hooks/useSpotifyAuth";
 
 
 const SERVICES = [
-  { key: 'spotify', name: 'Spotify', icon: 'logo-spotify' },
-  { key: 'applemusic', name: 'Apple Music', icon: 'musical-notes-outline' },
-  { key: 'tidal', name: 'Tidal', icon: 'water-outline' },
-  { key: 'soundcloud', name: 'SoundCloud', icon: 'cloud-outline' },
+  { key: 'spotify', name: 'Spotify', icon: 'arrow-forward' },
+  { key: 'applemusic', name: 'Apple Music', icon: 'arrow-forward' },
+  { key: 'tidal', name: 'Tidal', icon: 'arrow-forward' },
+  { key: 'soundcloud', name: 'SoundCloud', icon: 'arrow-forward' },
 ];
 
 export default function SettingsScreen() {
@@ -29,7 +29,7 @@ export default function SettingsScreen() {
   const isDarkMode = colorScheme === 'dark';
 
   // Spotify Auth
-  const { login: spotifyLogin, isLoading: spotifyLoading, isAuthenticated: spotifyConnected } = useSpotifyAuth();
+  const { login: spotifyLogin, logout: spotifyLogout, isLoading: spotifyLoading, isAuthenticated: spotifyConnected } = useSpotifyAuth();
 
   const toggleSection = (sectionId: string) => {
     setExpandedSections(prev => ({
@@ -134,14 +134,19 @@ export default function SettingsScreen() {
                       paddingVertical: 8,
                       borderWidth: 1,
                       borderColor: iconColor + '33',
-                      opacity: service.key === 'spotify' && spotifyConnected ? 0.5 : 1,
                     }}
-                    onPress={service.key === 'spotify' ? spotifyLogin : undefined}
-                    disabled={service.key === 'spotify' && spotifyConnected}
+                    onPress={
+                      service.key === 'spotify'
+                        ? (spotifyConnected ? spotifyLogout : spotifyLogin)
+                        : undefined
+                    }
+                    disabled={spotifyLoading}
                   >
                     <ThemedText style={{ color: '#222', fontWeight: '600' }}>
                       {service.key === 'spotify'
-                        ? (spotifyConnected ? 'Connected' : (spotifyLoading ? 'Connecting...' : 'Connect'))
+                        ? (spotifyConnected
+                            ? (spotifyLoading ? 'Logging out...' : 'Logout')
+                            : (spotifyLoading ? 'Connecting...' : 'Connect'))
                         : 'Connect'}
                     </ThemedText>
                   </TouchableOpacity>

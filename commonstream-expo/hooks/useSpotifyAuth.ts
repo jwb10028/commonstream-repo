@@ -75,14 +75,52 @@ export function useSpotifyAuth() {
         throw new Error(`Failed to exchange code for token: ${response.status} - ${responseText}`);
       }
 
-      const tokenData: SpotifyTokens = await response.json();
-      
+      let tokenData: SpotifyTokens = await response.json();
+      // Add timestamp for expiration tracking
+      tokenData = { ...tokenData, timestamp: Date.now() };
       // Fetch user data
       await fetchUserData(tokenData.access_token, tokenData);
-      
     } catch (err) {
       console.error('Token exchange error:', err);
       setError(err instanceof Error ? err.message : 'Token exchange failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const refreshToken = async (overrideTokens?: SpotifyTokens) => {
+    const currentTokens = overrideTokens || tokens;
+    if (!currentTokens?.refresh_token) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const params = {
+        grant_type: 'refresh_token',
+        refresh_token: currentTokens.refresh_token,
+        client_id: SPOTIFY_CONFIG.CLIENT_ID,
+      };
+      const body = Object.keys(params)
+        .map(key => encodeURIComponent(key) + '=' + encodeURIComponent(params[key as keyof typeof params]))
+        .join('&');
+
+      const response = await fetch(SPOTIFY_CONFIG.ENDPOINTS.TOKEN, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body,
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to refresh token');
+      }
+
+      const newTokenData: SpotifyTokens = await response.json();
+      const updatedTokens = { ...currentTokens, ...newTokenData, timestamp: Date.now() };
+      setTokens(updatedTokens);
+      await SecureStore.setItemAsync('spotify_tokens', JSON.stringify(updatedTokens));
+    } catch (err) {
+      setError('Failed to refresh token');
     } finally {
       setIsLoading(false);
     }
@@ -125,13 +163,25 @@ export function useSpotifyAuth() {
     await SecureStore.deleteItemAsync('spotify_user');
   };
 
-  // Optionally, load tokens/user from SecureStore on mount
+  // Load tokens/user from SecureStore on mount and refresh if needed
   useEffect(() => {
     const loadStored = async () => {
       const storedTokens = await SecureStore.getItemAsync('spotify_tokens');
       const storedUser = await SecureStore.getItemAsync('spotify_user');
-      if (storedTokens) setTokens(JSON.parse(storedTokens));
+      let parsedTokens: SpotifyTokens | null = null;
+      if (storedTokens) {
+        parsedTokens = JSON.parse(storedTokens);
+        setTokens(parsedTokens);
+      }
       if (storedUser) setUser(JSON.parse(storedUser));
+
+      // Check if token is expired or about to expire (refresh 1 min before expiry)
+      if (parsedTokens && parsedTokens.expires_in && parsedTokens.timestamp) {
+        const expiresAt = parsedTokens.timestamp + parsedTokens.expires_in * 1000;
+        if (Date.now() > expiresAt - 60000) {
+          await refreshToken(parsedTokens);
+        }
+      }
     };
     loadStored();
   }, []);
