@@ -1,50 +1,21 @@
 import React, { useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
-import { useRouter } from 'expo-router';
+// ...existing code...
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { useAuth } from '@/context/AuthContext';
-import { useSpotifyAuth } from '@/hooks/useSpotifyAuth';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Glow from '@/app/(widgets)/ui/glow';
 import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function AuthScreen() {
   const router = useRouter();
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
-  const { login, isLoading: spotifyLoading, error } = useSpotifyAuth();
-  
-  // Theme colors
   const tintColor = useThemeColor({}, 'tint');
   const textColor = useThemeColor({}, 'text');
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      router.replace('/home');
-    }
-  }, [isAuthenticated]);
-
-  // login handle currently checks spotify oauth,
-  // but we need to edit to check user credentials in sqlite instance
-  const handleLogin = async () => {
-    try {
-      await login();
-    } catch (err) {
-      console.error('Login failed:', err);
-    }
+  const handleLogin = () => {
+    router.replace('/home');
   };
-
-  if (authLoading) {
-    return (
-      <ThemedView style={styles.container}>
-        <Glow />
-        <View style={styles.loadingContent}>
-          <ActivityIndicator size="large" color={tintColor} />
-          <ThemedText style={styles.loadingText}>Loading...</ThemedText>
-        </View>
-      </ThemedView>
-    );
-  }
 
   return (
     <ThemedView style={styles.container}>
@@ -58,27 +29,17 @@ export default function AuthScreen() {
             Stream
           </ThemedText>
         </View>
-        
-        {error && (
-          <Text style={styles.errorText}>{error}</Text>
-        )}
       </View>
-      
       {/* Footer with login button */}
       <View style={styles.footer}>
         <TouchableOpacity 
-          style={[styles.loginButton, spotifyLoading && styles.loginButtonDisabled]} 
+          style={styles.loginButton}
           onPress={handleLogin}
-          disabled={spotifyLoading}
         >
-          {spotifyLoading ? (
-            <ActivityIndicator color="black" size="small" />
-          ) : (
-            <View style={styles.buttonContent}>
-              <Ionicons name="musical-notes" size={24} color="black" style={styles.spotifyIcon} />
-              <Text style={styles.loginButtonText}>Continue with Spotify</Text>
-            </View>
-          )}
+          <View style={styles.buttonContent}>
+            <Ionicons name="musical-notes" size={24} color="black" style={styles.spotifyIcon} />
+            <Text style={styles.loginButtonText}>Continue to app</Text>
+          </View>
         </TouchableOpacity>
       </View>
     </ThemedView>

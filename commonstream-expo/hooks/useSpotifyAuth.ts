@@ -3,7 +3,7 @@ import { makeRedirectUri, useAuthRequest } from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import { SPOTIFY_CONFIG } from '@/constants/Spotify';
 import { SpotifyTokens, SpotifyUser } from '@/types/Spotify';
-import { useAuth } from '@/context/AuthContext';
+import * as SecureStore from 'expo-secure-store';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -15,7 +15,8 @@ const discovery = {
 export function useSpotifyAuth() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { tokens, user, setAuthData, logout: contextLogout } = useAuth();
+  const [tokens, setTokens] = useState<SpotifyTokens | null>(null);
+  const [user, setUser] = useState<SpotifyUser | null>(null);
 
   const redirectUri = process.env.EXPO_PUBLIC_APP_ENV === 'development' ? makeRedirectUri({ scheme: 'exp' })
                                                                         : makeRedirectUri({ scheme: 'exp' });
@@ -100,9 +101,10 @@ export function useSpotifyAuth() {
       }
 
       const userData: SpotifyUser = await response.json();
-      
-      // Update the auth context with both tokens and user data
-      await setAuthData(tokens, userData);
+      setTokens(tokens);
+      setUser(userData);
+      await SecureStore.setItemAsync('spotify_tokens', JSON.stringify(tokens));
+      await SecureStore.setItemAsync('spotify_user', JSON.stringify(userData));
     } catch (err) {
       console.error('Error fetching user data:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch user data');
@@ -115,10 +117,24 @@ export function useSpotifyAuth() {
     promptAsync();
   };
 
-  const logout = () => {
+  const logout = async () => {
+    setTokens(null);
+    setUser(null);
     setError(null);
-    contextLogout();
+    await SecureStore.deleteItemAsync('spotify_tokens');
+    await SecureStore.deleteItemAsync('spotify_user');
   };
+
+  // Optionally, load tokens/user from SecureStore on mount
+  useEffect(() => {
+    const loadStored = async () => {
+      const storedTokens = await SecureStore.getItemAsync('spotify_tokens');
+      const storedUser = await SecureStore.getItemAsync('spotify_user');
+      if (storedTokens) setTokens(JSON.parse(storedTokens));
+      if (storedUser) setUser(JSON.parse(storedUser));
+    };
+    loadStored();
+  }, []);
 
   return {
     tokens,
