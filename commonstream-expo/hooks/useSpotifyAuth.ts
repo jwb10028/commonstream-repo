@@ -17,10 +17,8 @@ export function useSpotifyAuth() {
   const [error, setError] = useState<string | null>(null);
   const { tokens, user, setAuthData, logout: contextLogout } = useAuth();
 
-  const redirectUri =
-  process.env.EXPO_PUBLIC_APP_ENV === 'development'
-    ? process.env.EXPO_PUBLIC_SPOTIFY_REDIRECT_URI || makeRedirectUri({ scheme: 'exp' })
-    : makeRedirectUri({ scheme: 'exp' });
+  const redirectUri = process.env.EXPO_PUBLIC_APP_ENV === 'development' ? makeRedirectUri({ scheme: 'exp' })
+                                                                        : makeRedirectUri({ scheme: 'exp' });
 
   const [request, response, promptAsync] = useAuthRequest(
     {
