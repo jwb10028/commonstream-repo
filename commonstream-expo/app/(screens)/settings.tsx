@@ -5,7 +5,9 @@ import { ThemedView } from '@/components/ThemedView';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useTheme } from '@/context/ThemeContext';
+
 import { useSpotifyAuth } from "@/hooks/useSpotifyAuth";
+import { useTidalAuth } from "@/hooks/useTidalAuth";
 
 
 const SERVICES = [
@@ -28,8 +30,12 @@ export default function SettingsScreen() {
   const { colorScheme, toggleTheme } = useTheme();
   const isDarkMode = colorScheme === 'dark';
 
+
   // Spotify Auth
   const { login: spotifyLogin, logout: spotifyLogout, isLoading: spotifyLoading, isAuthenticated: spotifyConnected } = useSpotifyAuth();
+
+  // Tidal Auth
+  const { login: tidalLogin, logout: tidalLogout, isLoading: tidalLoading, isAuthenticated: tidalConnected } = useTidalAuth();
 
   const toggleSection = (sectionId: string) => {
     setExpandedSections(prev => ({
@@ -116,42 +122,55 @@ export default function SettingsScreen() {
 
           {expandedSections.services && (
             <View style={styles.accordionContent}>
-              {SERVICES.map(service => (
-                <View key={service.key} style={styles.settingItem}>
-                  <View style={styles.settingLeft}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <Ionicons name={service.icon as any} size={22} color={iconColor} />
-                      <ThemedText style={[styles.settingTitle, { color: textColor, marginLeft: 10 }]}> 
-                        {service.name}
-                      </ThemedText>
+              {SERVICES.map(service => {
+                let onPress;
+                let loading = false;
+                let connected = false;
+                let label = 'Connect';
+                if (service.key === 'spotify') {
+                  onPress = spotifyConnected ? spotifyLogout : spotifyLogin;
+                  loading = spotifyLoading;
+                  connected = spotifyConnected;
+                  label = spotifyConnected
+                    ? (spotifyLoading ? 'Logging out...' : 'Logout')
+                    : (spotifyLoading ? 'Connecting...' : 'Connect');
+                } else if (service.key === 'tidal') {
+                  onPress = tidalConnected ? tidalLogout : tidalLogin;
+                  loading = tidalLoading;
+                  connected = tidalConnected;
+                  label = tidalConnected
+                    ? (tidalLoading ? 'Logging out...' : 'Logout')
+                    : (tidalLoading ? 'Connecting...' : 'Connect');
+                }
+                return (
+                  <View key={service.key} style={styles.settingItem}>
+                    <View style={styles.settingLeft}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Ionicons name={service.icon as any} size={22} color={iconColor} />
+                        <ThemedText style={[styles.settingTitle, { color: textColor, marginLeft: 10 }]}> 
+                          {service.name}
+                        </ThemedText>
+                      </View>
                     </View>
+                    <TouchableOpacity
+                      style={{
+                        backgroundColor: '#fff',
+                        borderRadius: 8,
+                        paddingHorizontal: 18,
+                        paddingVertical: 8,
+                        borderWidth: 1,
+                        borderColor: iconColor + '33',
+                      }}
+                      onPress={onPress}
+                      disabled={loading}
+                    >
+                      <ThemedText style={{ color: '#222', fontWeight: '600' }}>
+                        {label}
+                      </ThemedText>
+                    </TouchableOpacity>
                   </View>
-                  <TouchableOpacity
-                    style={{
-                      backgroundColor: '#fff',
-                      borderRadius: 8,
-                      paddingHorizontal: 18,
-                      paddingVertical: 8,
-                      borderWidth: 1,
-                      borderColor: iconColor + '33',
-                    }}
-                    onPress={
-                      service.key === 'spotify'
-                        ? (spotifyConnected ? spotifyLogout : spotifyLogin)
-                        : undefined
-                    }
-                    disabled={spotifyLoading}
-                  >
-                    <ThemedText style={{ color: '#222', fontWeight: '600' }}>
-                      {service.key === 'spotify'
-                        ? (spotifyConnected
-                            ? (spotifyLoading ? 'Logging out...' : 'Logout')
-                            : (spotifyLoading ? 'Connecting...' : 'Connect'))
-                        : 'Connect'}
-                    </ThemedText>
-                  </TouchableOpacity>
-                </View>
-              ))}
+                );
+              })}
             </View>
           )}
         </View>
