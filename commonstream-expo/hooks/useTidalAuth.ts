@@ -55,7 +55,10 @@ export function useTidalAuth() {
     tokenEndpoint: TIDAL_TOKEN_URL,
   };
 
-  const redirectUri = TIDAL_REDIRECT_URI || makeRedirectUri({ scheme: 'exp' });
+  const redirectUri = makeRedirectUri({ scheme: 'exp' });
+  console.log('TIDAL_CLIENT_ID:', TIDAL_CLIENT_ID);
+  console.log('redirectUri:', redirectUri);
+
 
   const [request, response, promptAsync] = useAuthRequest(
     {
@@ -67,6 +70,7 @@ export function useTidalAuth() {
     },
     discovery
   );
+  console.log(request?.url);
 
   // Login (OAuth2 PKCE)
   const login = async () => {

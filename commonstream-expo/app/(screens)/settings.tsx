@@ -37,6 +37,9 @@ export default function SettingsScreen() {
   // Tidal Auth
   const { login: tidalLogin, logout: tidalLogout, isLoading: tidalLoading, isAuthenticated: tidalConnected } = useTidalAuth();
 
+  // Debug: Log tidalConnected state
+  console.log('Tidal Connected:', tidalConnected);
+
   const toggleSection = (sectionId: string) => {
     setExpandedSections(prev => ({
       ...prev,
