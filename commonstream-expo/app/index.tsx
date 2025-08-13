@@ -14,6 +14,7 @@ export default function AuthScreen() {
   const textColor = useThemeColor({}, 'text');
 
   const handleLogin = () => {
+    // add auth logic here if needed
     router.replace('/home');
   };
 
