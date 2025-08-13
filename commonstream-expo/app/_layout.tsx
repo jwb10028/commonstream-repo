@@ -17,6 +17,15 @@ function AppContent() {
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="home" options={{ headerShown: false }} />
         <Stack.Screen 
+          name="(screens)/home" 
+          options={{ 
+            headerShown: true,
+            headerTitle: "",
+            headerBackTitle: "",
+            headerTintColor: colorScheme === 'dark' ? '#fff' : '#000',
+          }} 
+        />
+        <Stack.Screen 
           name="(screens)/settings" 
           options={{ 
             headerShown: true,

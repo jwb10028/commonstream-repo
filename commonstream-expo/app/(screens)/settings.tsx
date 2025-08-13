@@ -11,8 +11,6 @@ import { useSpotifyAuth } from "@/hooks/useSpotifyAuth";
 const SERVICES = [
   { key: 'spotify', name: 'Spotify', icon: 'arrow-forward' },
   { key: 'applemusic', name: 'Apple Music', icon: 'arrow-forward' },
-  { key: 'tidal', name: 'Tidal', icon: 'arrow-forward' },
-  { key: 'soundcloud', name: 'SoundCloud', icon: 'arrow-forward' },
 ];
 
 export default function SettingsScreen() {
