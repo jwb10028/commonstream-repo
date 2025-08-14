@@ -9,12 +9,18 @@ export type UserProfile = {
   displayName?: string;
   firstName?: string;
   lastName?: string;
+  email?: string;
+  createdAt?: string;
   country?: string;
   avatarUrl?: string;
   bio?: string;
   preferences?: {
     temp?: boolean;
   };
+  connections?:{
+    spotify?: boolean;
+    appleMusic?: boolean;
+  }
 };
 
 // ----------------------
