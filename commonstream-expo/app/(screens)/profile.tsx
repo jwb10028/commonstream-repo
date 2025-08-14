@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -16,6 +16,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useTheme } from '@/context/ThemeContext';
 import { useUserStorage } from '@/hooks/useUserStorage';
+import { useLocalMedia } from '@/hooks/useLocalMedia';
 import { Colors } from '@/constants/Colors';
 
 export default function ProfileScreen() {
@@ -33,6 +34,12 @@ export default function ProfileScreen() {
     bio: '',
   });
 
+  // Edit Images sheet (local media)
+  const { pickAndSaveAvatar, pickAndSaveBanner, deleteLocal } = useLocalMedia();
+  const [imagesOpen, setImagesOpen] = useState(false);
+  const [imagesForm, setImagesForm] = useState<{ bannerUrl?: string; avatarUrl?: string }>({});
+  const tempFilesRef = useRef<string[]>([]); // track newly created files until user saves
+
   useEffect(() => {
     if (editOpen && profile) {
       setEditForm({
@@ -45,9 +52,61 @@ export default function ProfileScreen() {
     }
   }, [editOpen, profile]);
 
+  // preload images sheet with existing values
+  useEffect(() => {
+    if (imagesOpen && profile) {
+      setImagesForm({
+        bannerUrl: profile.bannerUrl || '',
+        avatarUrl: profile.avatarUrl || '',
+      });
+    }
+  }, [imagesOpen, profile]);
+
   const saveEditProfile = async () => {
     await updateUserProfile(editForm);
     setEditOpen(false);
+  };
+
+  // ---- Images handlers (local) ----
+  const chooseBanner = async () => {
+    const uri = await pickAndSaveBanner();
+    if (uri) {
+      tempFilesRef.current.push(uri);
+      setImagesForm(f => ({ ...f, bannerUrl: uri }));
+    }
+  };
+
+  const chooseAvatar = async () => {
+    const uri = await pickAndSaveAvatar();
+    if (uri) {
+      tempFilesRef.current.push(uri);
+      setImagesForm(f => ({ ...f, avatarUrl: uri }));
+    }
+  };
+
+  const saveImages = async () => {
+    // delete previously saved local files if they are replaced
+    if (imagesForm.avatarUrl && imagesForm.avatarUrl !== profile?.avatarUrl) {
+      await deleteLocal(profile?.avatarUrl);
+    }
+    if (imagesForm.bannerUrl && imagesForm.bannerUrl !== profile?.bannerUrl) {
+      await deleteLocal(profile?.bannerUrl);
+    }
+
+    await updateUserProfile({
+      avatarUrl: imagesForm.avatarUrl ?? profile?.avatarUrl ?? '',
+      bannerUrl: imagesForm.bannerUrl ?? profile?.bannerUrl ?? '',
+    });
+
+    tempFilesRef.current = []; // we keep newly saved files
+    setImagesOpen(false);
+  };
+
+  const cancelImages = async () => {
+    // cleanup any files picked during this session that weren’t saved
+    await Promise.all(tempFilesRef.current.map(deleteLocal));
+    tempFilesRef.current = [];
+    setImagesOpen(false);
   };
 
   if (loading) {
@@ -85,20 +144,34 @@ export default function ProfileScreen() {
     );
   }
 
+  // When editing images, show the live-picked banner; otherwise use saved profile.bannerUrl
+  const bannerSrc = imagesOpen ? imagesForm.bannerUrl || profile.bannerUrl : profile.bannerUrl;
+
   return (
     <ThemedView style={styles.container}>
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
-        {/* ===== 1) Banner + Cover (placeholders) ===== */}
+        {/* ===== 1) Banner + Cover ===== */}
         <View style={styles.bannerWrap}>
-          <View
-            style={[
-              styles.banner,
-              { backgroundColor: colorScheme === 'dark' ? '#2b2b2b' : '#c4f0c2' },
-            ]}
-          >
-            <TouchableOpacity style={styles.editChip}>
-              <Ionicons name="image-outline" size={14} color="#fff" />
-              <ThemedText style={styles.editChipText}>Change Banner</ThemedText>
+          <View style={styles.banner}>
+            {bannerSrc ? (
+              <Image
+                source={{ uri: bannerSrc }}
+                style={StyleSheet.absoluteFillObject as any}
+                resizeMode="cover"
+              />
+            ) : (
+              <View
+                style={[
+                  StyleSheet.absoluteFillObject as any,
+                  { backgroundColor: colorScheme === 'dark' ? '#2b2b2b' : '#c4f0c2' },
+                ]}
+              />
+            )}
+
+            {/* Edit Images */}
+            <TouchableOpacity style={styles.editChip} onPress={() => setImagesOpen(true)}>
+              <Ionicons name="images-outline" size={14} color="#fff" />
+              <ThemedText style={styles.editChipText}>Edit Images</ThemedText>
             </TouchableOpacity>
           </View>
 
@@ -110,7 +183,7 @@ export default function ProfileScreen() {
               <View
                 style={[
                   styles.avatar,
-                  { alignItems: 'center', justifyContent: 'center', backgroundColor: theme.background },
+                { alignItems: 'center', justifyContent: 'center', backgroundColor: theme.background },
                 ]}
               >
                 <Ionicons name="person" size={36} color={theme.icon} />
@@ -127,7 +200,7 @@ export default function ProfileScreen() {
             { backgroundColor: theme.background, borderColor: theme.icon + '22' },
           ]}
         >
-          {/* Name/username box (single line, no wrapping) */}
+          {/* Name/username (single line, no wrapping) */}
           <View style={styles.nameBox}>
             <ThemedText
               type="title"
@@ -138,7 +211,7 @@ export default function ProfileScreen() {
               {profile.displayName || 'User'}
             </ThemedText>
 
-            {!!(profile.displayName) && (
+            {!!profile.displayName && (
               <ThemedText
                 style={styles.usernameText}
                 numberOfLines={1}
@@ -169,21 +242,22 @@ export default function ProfileScreen() {
         {/* Bio (read-only here) */}
         <Section title="Bio" theme={theme}>
           <ThemedText style={{ opacity: 0.8 }}>
-            {profile.bio?.trim()
-              ? profile.bio
-              : 'Tell people what you’re all about!'}
+            {profile.bio?.trim() ? profile.bio : 'Tell people what you’re all about!'}
           </ThemedText>
         </Section>
 
         {/* User details */}
         <Section title="User Details" theme={theme}>
-          {/* <DetailRow label="User ID" value={profile.id} theme={theme} /> */}
           {!!profile.firstName && <DetailRow label="First Name" value={profile.firstName} theme={theme} />}
           {!!profile.lastName && <DetailRow label="Last Name" value={profile.lastName} theme={theme} />}
           {!!profile.country && <DetailRow label="Country" value={profile.country} theme={theme} />}
           {!!profile.email && <DetailRow label="Email" value={profile.email} theme={theme} />}
           {!!profile.createdAt && (
-            <DetailRow label="Member Since" value={new Date(profile.createdAt).toDateString()} theme={theme} />
+            <DetailRow
+              label="Member Since"
+              value={new Date(profile.createdAt).toDateString()}
+              theme={theme}
+            />
           )}
         </Section>
 
@@ -226,22 +300,17 @@ export default function ProfileScreen() {
         </View>
       </ScrollView>
 
-      {/* ===== Edit Profile Bottom Sheet (no alpha overlay) ===== */}
+      {/* ===== Edit Profile Bottom Sheet (no overlay) ===== */}
       <Modal
         visible={editOpen}
         animationType="slide"
         transparent
         onRequestClose={() => setEditOpen(false)}
       >
-        {/* No backdrop; we just anchor the sheet to the bottom */}
         <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          >
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <View style={[styles.sheet, { backgroundColor: theme.background, borderColor: theme.icon + '22' }]}>
-              {/* Grab handle */}
               <View style={styles.handle} />
-
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                 <ThemedText type="title" style={{ fontSize: 20, flex: 1 }}>
                   Edit Profile
@@ -291,13 +360,102 @@ export default function ProfileScreen() {
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
                 <TouchableOpacity
                   onPress={saveEditProfile}
-                  style={[styles.button, { flex: 1, backgroundColor: theme.tint, borderColor: theme.icon + '22' }]}
+                  style={[styles.button, { flex: 1, backgroundColor: theme.background, borderColor: theme.icon + '22' }]}
                 >
                   <Ionicons name="save-outline" size={18} color={theme.text} style={{ marginRight: 8 }} />
                   <ThemedText style={{ color: theme.text }}>Save</ThemedText>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => setEditOpen(false)}
+                  style={[styles.button, { flex: 1, backgroundColor: theme.background, borderColor: theme.icon + '22' }]}
+                >
+                  <Ionicons name="close-outline" size={18} color={theme.text} style={{ marginRight: 8 }} />
+                  <ThemedText>Cancel</ThemedText>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
+
+      {/* ===== Edit Images Bottom Sheet (no overlay) ===== */}
+      <Modal
+        visible={imagesOpen}
+        animationType="slide"
+        transparent
+        onRequestClose={cancelImages}
+      >
+        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <View style={[styles.sheet, { backgroundColor: theme.background, borderColor: theme.icon + '22' }]}>
+              <View style={styles.handle} />
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                <ThemedText type="title" style={{ fontSize: 20, flex: 1 }}>
+                  Edit Images
+                </ThemedText>
+                <TouchableOpacity onPress={cancelImages}>
+                  <Ionicons name="close" size={22} color={theme.text} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Banner picker + preview */}
+              <ThemedText style={{ marginBottom: 6 }}>Banner</ThemedText>
+              <View style={styles.bannerPreview}>
+                {imagesForm.bannerUrl || bannerSrc ? (
+                  <Image
+                    source={{ uri: imagesForm.bannerUrl || bannerSrc }}
+                    style={StyleSheet.absoluteFillObject as any}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View
+                    style={[
+                      StyleSheet.absoluteFillObject as any,
+                      { backgroundColor: colorScheme === 'dark' ? '#2b2b2b' : '#c4f0c2' },
+                    ]}
+                  />
+                )}
+              </View>
+              <TouchableOpacity
+                onPress={chooseBanner}
+                style={[styles.button, { marginBottom: 12, backgroundColor: theme.background, borderColor: theme.icon + '22' }]}
+              >
+                <Ionicons name="image-outline" size={18} color={theme.text} style={{ marginRight: 8 }} />
+                <ThemedText>Choose Banner</ThemedText>
+              </TouchableOpacity>
+
+              {/* Avatar picker + preview */}
+              <ThemedText style={{ marginBottom: 6 }}>Profile Photo</ThemedText>
+              <View style={styles.avatarPreviewWrap}>
+                <View style={styles.avatarPreview}>
+                  {imagesForm.avatarUrl || profile.avatarUrl ? (
+                    <Image
+                      source={{ uri: imagesForm.avatarUrl || profile.avatarUrl }}
+                      style={StyleSheet.absoluteFillObject as any}
+                    />
+                  ) : (
+                    <View style={[StyleSheet.absoluteFillObject as any, { backgroundColor: '#eee' }]} />
+                  )}
+                </View>
+              </View>
+              <TouchableOpacity
+                onPress={chooseAvatar}
+                style={[styles.button, { marginBottom: 8, backgroundColor: theme.background, borderColor: theme.icon + '22' }]}
+              >
+                <Ionicons name="person-circle-outline" size={18} color={theme.text} style={{ marginRight: 8 }} />
+                <ThemedText>Choose Profile Photo</ThemedText>
+              </TouchableOpacity>
+
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
+                <TouchableOpacity
+                  onPress={saveImages}
+                  style={[styles.button, { flex: 1, backgroundColor: theme.background, borderColor: theme.icon + '22' }]}
+                >
+                  <Ionicons name="save-outline" size={18} color={theme.text} style={{ marginRight: 8 }} />
+                  <ThemedText style={{ color: theme.text }}>Save</ThemedText>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={cancelImages}
                   style={[styles.button, { flex: 1, backgroundColor: theme.background, borderColor: theme.icon + '22' }]}
                 >
                   <Ionicons name="close-outline" size={18} color={theme.text} style={{ marginRight: 8 }} />
@@ -399,7 +557,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
   bannerWrap: { position: 'relative' },
-  banner: { height: 140, width: '100%' },
+  banner: { height: 140, width: '100%', overflow: 'hidden', borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#00000011' },
 
   editChip: {
     position: 'absolute',
@@ -512,7 +670,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  /* Bottom sheet (no overlay) */
+  /* Bottom sheets (no overlay) */
   sheet: {
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
@@ -536,5 +694,27 @@ const styles = StyleSheet.create({
     padding: 10,
     marginBottom: 10,
     color: '#222',
+  },
+
+  bannerPreview: {
+    height: 120,
+    width: '100%',
+    borderRadius: 10,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    marginBottom: 8,
+  },
+  avatarPreviewWrap: {
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  avatarPreview: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: '#ddd',
   },
 });

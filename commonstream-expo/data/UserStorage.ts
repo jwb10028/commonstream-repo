@@ -13,6 +13,7 @@ export type UserProfile = {
   createdAt?: string;
   country?: string;
   avatarUrl?: string;
+  bannerUrl?: string;
   bio?: string;
   preferences?: {
     temp?: boolean;
