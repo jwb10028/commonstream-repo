@@ -120,7 +120,7 @@ export function QueryModal({
               </ThemedText>
               {query && (
                 <ThemedText style={[styles.queryText, { color: iconColor }]}>
-                  "{query}"
+                  &ldquo;{query}&rdquo;
                 </ThemedText>
               )}
             </View>
@@ -497,3 +497,5 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 });
+
+export default QueryModal;
