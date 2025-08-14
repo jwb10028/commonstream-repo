@@ -7,12 +7,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export type UserProfile = {
   id: string; // "local-1" if single-user device
   displayName?: string;
+  firstName?: string;
+  lastName?: string;
   country?: string;
   avatarUrl?: string;
   bio?: string;
   preferences?: {
-    explicitFilter?: boolean;
-    theme?: 'light' | 'dark' | 'system';
+    temp?: boolean;
   };
 };
 
