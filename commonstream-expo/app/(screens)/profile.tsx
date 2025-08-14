@@ -17,12 +17,20 @@ import { ThemedView } from '@/components/ThemedView';
 import { useTheme } from '@/context/ThemeContext';
 import { useUserStorage } from '@/hooks/useUserStorage';
 import { useLocalMedia } from '@/hooks/useLocalMedia';
+import { useTasteStorage } from '@/hooks/useTasteStorage';
 import { Colors } from '@/constants/Colors';
+import type { TasteKind } from '@/data/TasteStorage';
 
 export default function ProfileScreen() {
   const { profile, loading, updateUserProfile, clearUserProfile } = useUserStorage();
   const { colorScheme } = useTheme();
   const theme = Colors[colorScheme || 'light'];
+
+  // Tastes data
+  const {
+    profile: tasteProfile,
+    addTaste,
+  } = useTasteStorage();
 
   // Edit Profile sheet
   const [editOpen, setEditOpen] = useState(false);
@@ -39,6 +47,23 @@ export default function ProfileScreen() {
   const [imagesOpen, setImagesOpen] = useState(false);
   const [imagesForm, setImagesForm] = useState<{ bannerUrl?: string; avatarUrl?: string }>({});
   const tempFilesRef = useRef<string[]>([]); // track newly created files until user saves
+
+  // Add Taste sheet
+  const [tasteOpen, setTasteOpen] = useState(false);
+  const [tasteStep, setTasteStep] = useState<'kind' | 'form'>('kind');
+  const [tasteDraft, setTasteDraft] = useState<{
+    kind: TasteKind | null;
+    name: string;
+    tagsText: string;
+    ratingText: string;
+    note: string;
+  }>({
+    kind: null,
+    name: '',
+    tagsText: '',
+    ratingText: '',
+    note: '',
+  });
 
   useEffect(() => {
     if (editOpen && profile) {
@@ -103,10 +128,47 @@ export default function ProfileScreen() {
   };
 
   const cancelImages = async () => {
-    // cleanup any files picked during this session that weren’t saved
     await Promise.all(tempFilesRef.current.map(deleteLocal));
     tempFilesRef.current = [];
     setImagesOpen(false);
+  };
+
+  // ---- Taste handlers ----
+  const openAddTaste = () => {
+    setTasteDraft({ kind: null, name: '', tagsText: '', ratingText: '', note: '' });
+    setTasteStep('kind');
+    setTasteOpen(true);
+  };
+
+  const cancelTaste = () => {
+    setTasteOpen(false);
+  };
+
+  const backTaste = () => {
+    if (tasteStep === 'form') setTasteStep('kind');
+    else cancelTaste();
+  };
+
+  const proceedToForm = (kind: TasteKind) => {
+    setTasteDraft(d => ({ ...d, kind }));
+    setTasteStep('form');
+  };
+
+  const saveTaste = async () => {
+    if (!tasteDraft.kind || !tasteDraft.name.trim()) return;
+    const tags = tasteDraft.tagsText
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+    const rating = tasteDraft.ratingText.trim() === '' ? undefined : Math.max(0, Math.min(10, Number(tasteDraft.ratingText)));
+    await addTaste({
+      name: tasteDraft.name.trim(),
+      kind: tasteDraft.kind,
+      tags,
+      rating: Number.isFinite(rating as number) ? (rating as number) : undefined,
+      note: tasteDraft.note.trim() || undefined,
+    });
+    setTasteOpen(false);
   };
 
   if (loading) {
@@ -183,7 +245,7 @@ export default function ProfileScreen() {
               <View
                 style={[
                   styles.avatar,
-                { alignItems: 'center', justifyContent: 'center', backgroundColor: theme.background },
+                  { alignItems: 'center', justifyContent: 'center', backgroundColor: theme.background },
                 ]}
               >
                 <Ionicons name="person" size={36} color={theme.icon} />
@@ -258,6 +320,29 @@ export default function ProfileScreen() {
               value={new Date(profile.createdAt).toDateString()}
               theme={theme}
             />
+          )}
+        </Section>
+
+        {/* Tastes */}
+        <Section
+          title="Tastes"
+          theme={theme}
+          right={
+            <TouchableOpacity onPress={openAddTaste} style={[styles.iconBtn, { borderColor: theme.icon + '22' }]}>
+              <Ionicons name="add" size={18} color={theme.text} />
+            </TouchableOpacity>
+          }
+        >
+          {tasteProfile.items.length === 0 ? (
+            <ThemedText style={{ opacity: 0.7 }}>
+              Nothing here yet. Tap + to add your first taste.
+            </ThemedText>
+          ) : (
+            <View style={{ gap: 10 }}>
+              {tasteProfile.items.map(item => (
+                <TasteRow key={item.id} item={item} theme={theme} />
+              ))}
+            </View>
           )}
         </Section>
 
@@ -378,6 +463,107 @@ export default function ProfileScreen() {
         </View>
       </Modal>
 
+      {/* ===== Add Taste Bottom Sheet (no overlay) ===== */}
+      <Modal
+        visible={tasteOpen}
+        animationType="slide"
+        transparent
+        onRequestClose={cancelTaste}
+      >
+        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <View style={[styles.sheet, { backgroundColor: theme.background, borderColor: theme.icon + '22' }]}>
+              <View style={styles.handle} />
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                <ThemedText type="title" style={{ fontSize: 20, flex: 1 }}>
+                  {tasteStep === 'kind' ? 'Select Taste Type' : 'Add Taste'}
+                </ThemedText>
+                <TouchableOpacity onPress={cancelTaste}>
+                  <Ionicons name="close" size={22} color={theme.text} />
+                </TouchableOpacity>
+              </View>
+
+              {tasteStep === 'kind' ? (
+                <>
+                  <KindGrid onSelect={proceedToForm} theme={theme} />
+                  <View style={{ marginTop: 10 }}>
+                    <TouchableOpacity
+                      onPress={cancelTaste}
+                      style={[styles.button, { backgroundColor: theme.background, borderColor: theme.icon + '22' }]}
+                    >
+                      <ThemedText>Cancel</ThemedText>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <View style={{ marginBottom: 10 }}>
+                    <ThemedText style={{ opacity: 0.7, marginBottom: 6 }}>
+                      Type: {tasteDraft.kind}
+                    </ThemedText>
+                    <TextInput
+                      placeholder="Name (required)"
+                      placeholderTextColor="#888"
+                      value={tasteDraft.name}
+                      onChangeText={(t) => setTasteDraft(d => ({ ...d, name: t }))}
+                      style={styles.sheetInput}
+                    />
+                    <TextInput
+                      placeholder="Tags (comma-separated)"
+                      placeholderTextColor="#888"
+                      value={tasteDraft.tagsText}
+                      onChangeText={(t) => setTasteDraft(d => ({ ...d, tagsText: t }))}
+                      style={styles.sheetInput}
+                    />
+                    <TextInput
+                      placeholder="Rating (0-10)"
+                      placeholderTextColor="#888"
+                      value={tasteDraft.ratingText}
+                      onChangeText={(t) => setTasteDraft(d => ({ ...d, ratingText: t.replace(/[^0-9.]/g, '') }))}
+                      keyboardType="numeric"
+                      style={styles.sheetInput}
+                    />
+                    <TextInput
+                      placeholder="Notes"
+                      placeholderTextColor="#888"
+                      value={tasteDraft.note}
+                      onChangeText={(t) => setTasteDraft(d => ({ ...d, note: t }))}
+                      style={[styles.sheetInput, { height: 90 }]}
+                      multiline
+                    />
+                  </View>
+
+                  <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <TouchableOpacity
+                      onPress={backTaste}
+                      style={[styles.button, { flex: 1, backgroundColor: theme.background, borderColor: theme.icon + '22' }]}
+                    >
+                      <ThemedText>Back</ThemedText>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={saveTaste}
+                      disabled={!tasteDraft.name.trim() || !tasteDraft.kind}
+                      style={[
+                        styles.button,
+                        {
+                          flex: 1,
+                          backgroundColor: theme.background,
+                          borderColor: theme.icon + '22',
+                          opacity: !tasteDraft.name.trim() || !tasteDraft.kind ? 0.6 : 1,
+                        },
+                      ]}
+                    >
+                      <Ionicons name="save-outline" size={18} color={theme.text} style={{ marginRight: 8 }} />
+                      <ThemedText>Save</ThemedText>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
+
       {/* ===== Edit Images Bottom Sheet (no overlay) ===== */}
       <Modal
         visible={imagesOpen}
@@ -476,16 +662,21 @@ function Section({
   title,
   children,
   theme,
+  right,
 }: {
   title: string;
   children: React.ReactNode;
   theme: any;
+  right?: React.ReactNode;
 }) {
   return (
     <View style={{ paddingHorizontal: 16, marginBottom: 18 }}>
-      <ThemedText type="title" style={{ fontSize: 18, marginBottom: 10 }}>
-        {title}
-      </ThemedText>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+        <ThemedText type="title" style={{ fontSize: 18, flex: 1 }}>
+          {title}
+        </ThemedText>
+        {right ?? null}
+      </View>
       <View
         style={{
           borderWidth: 1,
@@ -546,6 +737,64 @@ function ConnectTile({
       </View>
     </TouchableOpacity>
   );
+}
+
+function TasteRow({ item, theme }: { item: any; theme: any }) {
+  const { iconName, mc } = iconForKind(item.kind);
+  const IconCmp = mc ? MaterialCommunityIcons : Ionicons;
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6 }}>
+      <IconCmp name={iconName as any} size={18} color={theme.text} />
+      <View style={{ marginLeft: 10, flex: 1 }}>
+        <ThemedText style={{ fontWeight: '600' }} numberOfLines={1}>
+          {item.name}
+        </ThemedText>
+        <ThemedText style={{ opacity: 0.6, fontSize: 12 }}>
+          {item.kind}{item.rating != null ? ` • ${item.rating}/10` : ''}
+        </ThemedText>
+      </View>
+      {item.favorite ? (
+        <Ionicons name="star" size={14} color={theme.text} />
+      ) : null}
+    </View>
+  );
+}
+
+function KindGrid({ onSelect, theme }: { onSelect: (k: TasteKind) => void; theme: any }) {
+  const kinds: TasteKind[] = ['music', 'artist', 'album', 'playlist', 'movie', 'tv', 'game', 'book', 'podcast', 'other'];
+  return (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+      {kinds.map(k => {
+        const { iconName, mc } = iconForKind(k);
+        const IconCmp = mc ? MaterialCommunityIcons : Ionicons;
+        return (
+          <TouchableOpacity
+            key={k}
+            onPress={() => onSelect(k)}
+            style={[styles.kindChip, { borderColor: theme.icon + '22', backgroundColor: theme.background }]}
+          >
+            <IconCmp name={iconName as any} size={16} color={theme.text} />
+            <ThemedText style={{ marginLeft: 6 }}>{k}</ThemedText>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
+function iconForKind(kind: TasteKind) {
+  switch (kind) {
+    case 'music': return { iconName: 'musical-notes-outline', mc: false };
+    case 'artist': return { iconName: 'account-music-outline', mc: true };
+    case 'album': return { iconName: 'album', mc: true };
+    case 'playlist': return { iconName: 'playlist-music', mc: true };
+    case 'movie': return { iconName: 'movie-outline', mc: true };
+    case 'tv': return { iconName: 'television', mc: true };
+    case 'game': return { iconName: 'gamepad-variant-outline', mc: true };
+    case 'book': return { iconName: 'book-outline', mc: true };
+    case 'podcast': return { iconName: 'podcast', mc: true };
+    default: return { iconName: 'star-outline', mc: true };
+  }
 }
 
 /* ---------- Styles ---------- */
@@ -641,12 +890,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
 
-  cta: {
-    alignSelf: 'flex-start',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
+  iconBtn: {
     borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
   },
 
   connectTile: {
@@ -716,5 +964,14 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 2,
     borderColor: '#ddd',
+  },
+
+  kindChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 999,
+    borderWidth: 1,
   },
 });
