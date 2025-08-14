@@ -20,11 +20,16 @@ import { useLocalMedia } from '@/hooks/useLocalMedia';
 import { useTasteStorage } from '@/hooks/useTasteStorage';
 import { Colors } from '@/constants/Colors';
 import type { TasteKind } from '@/data/TasteStorage';
+import SettingsModal from '../(widgets)/modals/settings_modal';
+import { useSpotifyAuth } from '@/hooks/useSpotifyAuth';
+
 
 export default function ProfileScreen() {
   const { profile, loading, updateUserProfile, clearUserProfile } = useUserStorage();
   const { colorScheme } = useTheme();
   const theme = Colors[colorScheme || 'light'];
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const { isAuthenticated: spotifyConnected } = useSpotifyAuth();
 
   // Tastes data
   const {
@@ -347,27 +352,34 @@ export default function ProfileScreen() {
         </Section>
 
         {/* Connections */}
-        <Section title="Connections" theme={theme}>
+        <Section title="Player Connections" theme={theme}>
           <View style={{ flexDirection: 'row', gap: 12 }}>
             <ConnectTile
-              icon={<MaterialCommunityIcons name="spotify" size={20} color={theme.text} />}
+              icon={
+                <MaterialCommunityIcons
+                  name="spotify"
+                  size={20}
+                  color={spotifyConnected ? theme.text : theme.text}
+                />
+              }
               title="Spotify"
-              connected={!!profile?.connections?.spotify}
+              connected={spotifyConnected}   // ← use hook state
               onPress={() => {}}
               theme={theme}
             />
             <ConnectTile
               icon={<Ionicons name="musical-notes-outline" size={20} color={theme.text} />}
               title="Apple Music"
-              connected={!!profile?.connections?.appleMusic}
+              connected={!!profile?.connections?.appleMusic}  // or your own check/hook
               onPress={() => {}}
               theme={theme}
             />
           </View>
         </Section>
 
+
         {/* Clear profile */}
-        <View style={{ paddingHorizontal: 16 }}>
+        {/* <View style={{ paddingHorizontal: 16 }}>
           <TouchableOpacity
             onPress={clearUserProfile}
             style={[
@@ -381,6 +393,24 @@ export default function ProfileScreen() {
           >
             <Ionicons name="trash-outline" size={18} color={theme.text} style={{ marginRight: 8 }} />
             <ThemedText style={{ color: theme.text }}>Clear Profile</ThemedText>
+          </TouchableOpacity>
+        </View> */}
+      
+        {/* Settings entry point */}
+        <View style={{ paddingHorizontal: 16 }}>
+          <TouchableOpacity
+            onPress={() => setSettingsOpen(true)}
+            style={[
+              styles.button,
+              {
+                borderColor: theme.icon + '22',
+                backgroundColor: theme.background === '#fff' ? '#fff' : '#3A3A3A',
+                marginTop: 4,
+              },
+            ]}
+          >
+            <Ionicons name="settings-outline" size={18} color={theme.text} style={{ marginRight: 8 }} />
+            <ThemedText style={{ color: theme.text }}>Settings</ThemedText>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -652,6 +682,10 @@ export default function ProfileScreen() {
           </KeyboardAvoidingView>
         </View>
       </Modal>
+      <SettingsModal
+        visible={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+      />
     </ThemedView>
   );
 }
@@ -713,7 +747,7 @@ function DetailRow({
 function ConnectTile({
   icon,
   title,
-  connected, // reserved
+  connected,
   onPress,
   theme,
 }: {
@@ -723,21 +757,27 @@ function ConnectTile({
   onPress: () => void;
   theme: any;
 }) {
+  const bg = connected ? '#1DB954' : theme.background;  // Spotify green when connected
+  const fg = connected ? theme.text : theme.text;
+  const border = connected ? theme.icon + '22' : theme.icon + '22';
+
   return (
     <TouchableOpacity
       onPress={onPress}
       style={[
         styles.connectTile,
-        { borderColor: theme.icon + '22', backgroundColor: theme.background },
+        { backgroundColor: bg, borderColor: border },
       ]}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        {/* Pass the icon with desired color from parent (as shown above) */}
         {icon}
-        <ThemedText style={{ marginLeft: 8 }}>{title}</ThemedText>
+        <ThemedText style={{ marginLeft: 8, color: fg }}>{title}</ThemedText>
       </View>
     </TouchableOpacity>
   );
 }
+
 
 function TasteRow({ item, theme }: { item: any; theme: any }) {
   const { iconName, mc } = iconForKind(item.kind);

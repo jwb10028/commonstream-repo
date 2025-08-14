@@ -43,7 +43,6 @@ export default function HomeModal({ visible, onClose }: HomeModalProps) {
     { name: 'Library', id: 'library', icon: 'library' as const, description: 'Your saved content' },
     { name: 'Discover', id: 'discover', icon: 'compass' as const, description: 'Find new music & artists' },
     { name: 'Profile', id: 'profile', icon: 'person' as const, description: 'Your account & preferences' },
-    { name: 'Settings', id: 'settings', icon: 'settings' as const, description: 'App configuration' },
   ];
 
   useEffect(() => {
@@ -62,9 +61,7 @@ export default function HomeModal({ visible, onClose }: HomeModalProps) {
     // onClose(); // Close the modal first
     
     // Navigate based on the option selected
-    if (optionId === 'settings') {
-      router.push('/(screens)/settings');
-    } else if (optionId === 'profile') {
+    if (optionId === 'profile') {
       router.push('/(screens)/profile');
     } else if (optionId === 'library') {
       router.push('/(screens)/library');

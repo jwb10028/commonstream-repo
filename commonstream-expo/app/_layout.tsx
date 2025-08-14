@@ -26,15 +26,6 @@ function AppContent() {
           }} 
         />
         <Stack.Screen 
-          name="(screens)/settings" 
-          options={{ 
-            headerShown: true,
-            headerTitle: "",
-            headerBackTitle: "",
-            headerTintColor: colorScheme === 'dark' ? '#fff' : '#000',
-          }} 
-        />
-        <Stack.Screen 
           name="(screens)/profile" 
           options={{ 
             headerShown: true,
