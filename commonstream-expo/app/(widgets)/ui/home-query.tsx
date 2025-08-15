@@ -141,6 +141,7 @@ export default function HomeQuery() {
       if (mode.key === 'create') {
         // 1) Composite prompt for LLM
         const compositePrompt = await buildCompositePrompt(userQuery);
+        // console.log('Composite prompt:', compositePrompt);
 
         // 2) Ask Groq to generate a playlist
         const response = await GroqService.generatePlaylist({
