@@ -22,6 +22,8 @@ import type { TrackMatchingResponse } from '@/types/TrackMatching';
 import { useSpotifyAuth } from '@/hooks/useSpotifyAuth';
 import useSysPromptStorage from '@/hooks/useSysPromptStorage';
 import { useTasteStorage } from '@/hooks/useTasteStorage';
+import SysPromptModal from '../modals/sprompt_modal';
+import TasteModal from '@/app/(widgets)/modals/taste_modal';
 
 type ModeKey = 'create' | 'find' | 'refs' | 'muso';
 const MODES: { key: ModeKey; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
@@ -68,6 +70,11 @@ export default function HomeQuery() {
   const placeholderColor = useThemeColor({}, 'tabIconDefault');
   const backgroundColor = useThemeColor({}, 'background');
   const iconColor = useThemeColor({}, 'icon');
+
+  // Param Modals
+  const [sysPromptOpen, setSysPromptOpen] = useState(false);
+  const [tasteModalOpen, setTasteModalOpen] = useState(false);
+
 
   // Keyboard listeners
   useEffect(() => {
@@ -203,7 +210,7 @@ export default function HomeQuery() {
         label="Include system prompts"
         checked={includeSystem}
         onToggle={() => setIncludeSystem(v => !v)}
-        onEdit={() => Alert.alert('Edit', 'Open System Prompts editor')}
+        onEdit={() => setSysPromptOpen(true)}
         iconColor={iconColor}
         textColor={borderColor}
         backgroundColor={backgroundColor}
@@ -218,7 +225,7 @@ export default function HomeQuery() {
           label="Include tastes"
           checked={includeTastes}
           onToggle={() => setIncludeTastes(v => !v)}
-          onEdit={() => Alert.alert('Edit', 'Open Tastes manager')}
+          onEdit={() => setTasteModalOpen(true)}
           iconColor={iconColor}
           textColor={borderColor}
           backgroundColor={backgroundColor}
@@ -335,6 +342,18 @@ export default function HomeQuery() {
         query={lastQuery}
         trackMatches={trackMatches}
         matchingInProgress={matchingInProgress}
+      />
+
+      {/* System Prompts modal */}
+      <SysPromptModal
+        visible={sysPromptOpen}
+        onClose={() => setSysPromptOpen(false)}
+      />
+
+      {/* Tastes modal */}
+      <TasteModal 
+        visible={tasteModalOpen} 
+        onClose={() => setTasteModalOpen(false)} 
       />
 
       {/* Keyboard toolbar */}
