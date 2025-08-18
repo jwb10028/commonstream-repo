@@ -50,13 +50,30 @@ export interface SuggestedTrack {
   reasoning?: string;
 }
 
+export interface FindResult {
+  answer: string;
+  context: string;
+  reasoning?: string;
+}
+
 export interface GeneratedPlaylist {
   name: string;
   description: string;
   tracks: SuggestedTrack[];
 }
 
+export interface GeneratedFind {
+  name: string;
+  description: string;
+  tracks: SuggestedTrack[];
+}
+
 export interface PlaylistGenerationRequest {
+  prompt: string;
+  preferences?: UserPreferences;
+}
+
+export interface FindGenerationRequest {
   prompt: string;
   preferences?: UserPreferences;
 }
@@ -70,6 +87,8 @@ export interface GroqServiceResponse<T> {
 }
 
 export interface PlaylistGenerationResponse extends GroqServiceResponse<GeneratedPlaylist> {}
+export interface FindGenerationResponse extends GroqServiceResponse<FindResult[]> {}
+export interface ReferenceGenerationResponse extends GroqServiceResponse<ReferenceResult[]> {}
 
 // Error Types
 export class GroqAPIError extends Error {
@@ -87,5 +106,38 @@ export class PlaylistParseError extends Error {
   constructor(message: string, public rawResponse?: string) {
     super(message);
     this.name = 'PlaylistParseError';
+  }
+}
+
+export class FindParseError extends Error {
+  constructor(message: string, public rawResponse?: string) {
+    super(message);
+    this.name = 'FindParseError';
+  }
+}
+
+export interface ReferenceResult {
+  relation: 'sampled_in' | 'samples' | 'soundtrack_in';
+  work_title: string;
+  work_type: 'song' | 'film' | 'tv' | 'game' | 'ad' | 'trailer' | 'other';
+  work_artist_or_credit: string;
+  note: string;
+  evidence_url: string;
+  evidence_source: string;
+  year?: string;
+  timestamp?: string;
+  episode?: string;
+  reasoning?: string;
+}
+
+export interface ReferenceGenerationRequest {
+  prompt: string;
+  preferences?: UserPreferences;
+}
+
+export class ReferenceParseError extends Error {
+  constructor(message: string, public rawResponse?: string) {
+    super(message);
+    this.name = 'ReferenceParseError';
   }
 }

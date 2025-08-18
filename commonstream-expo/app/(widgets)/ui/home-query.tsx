@@ -17,7 +17,7 @@ import KeyboardToolbar from './keyboard-toolbar';
 import QueryModal from '../modals/query_modal';
 import { GroqService } from '@/services/GroqAPI';
 import { TrackMatchingService } from '@/services/TrackMatchingAPI';
-import type { GeneratedPlaylist } from '@/types/Groq';
+import type { GeneratedPlaylist, FindResult, ReferenceResult } from '@/types/Groq';
 import type { TrackMatchingResponse } from '@/types/TrackMatching';
 import { useSpotifyAuth } from '@/hooks/useSpotifyAuth';
 import useSysPromptStorage from '@/hooks/useSysPromptStorage';
@@ -41,6 +41,8 @@ export default function HomeQuery() {
   // Modal state
   const [modalVisible, setModalVisible] = useState(false);
   const [playlist, setPlaylist] = useState<GeneratedPlaylist | null>(null);
+  const [findResults, setFindResults] = useState<FindResult[] | null>(null);
+  const [referenceResults, setReferenceResults] = useState<ReferenceResult[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -133,7 +135,9 @@ export default function HomeQuery() {
     setLoading(true);
     setError(null);
     setPlaylist(null);
+    setFindResults(null);
     setTrackMatches(null);
+    setReferenceResults(null);
     setMatchingInProgress(false);
     setModalVisible(true);
 
@@ -179,6 +183,35 @@ export default function HomeQuery() {
         } else {
           setError(response.error || 'Failed to generate playlist');
         }
+      } else if (mode.key === 'find') {
+        const compositePrompt = await buildCompositePrompt(userQuery);
+        // console.log('Composite prompt:', compositePrompt);
+
+        const findResp = await GroqService.findAResult({
+          prompt: compositePrompt,
+          preferences: { maxTracks: 30, explicit: true, energy: 'medium' }, // keep or trim as you like
+        });
+
+        if (findResp.success && findResp.data && findResp.data.length > 0) {
+          setFindResults(findResp.data);
+        } else {
+          setError(findResp.error || 'No results found for your request');
+        }
+        setLoading(false);
+      } else if (mode.key === 'refs') {
+        const compositePrompt = await buildCompositePrompt(userQuery);
+        // console.log('Composite prompt:', compositePrompt);
+
+        const referenceResp = await GroqService.generateReference({
+          prompt: compositePrompt,
+          preferences: { maxTracks: 30, explicit: true, energy: 'medium' },
+        });
+
+        if (referenceResp.success && referenceResp.data) {
+          setReferenceResults(referenceResp.data);
+        } else {
+          setError(referenceResp.error || 'Failed to generate reference');
+        }
       } else {
         // Stub for other modes (they still benefit from system prompts now)
         setLoading(false);
@@ -195,6 +228,8 @@ export default function HomeQuery() {
   const handleCloseModal = () => {
     setModalVisible(false);
     setPlaylist(null);
+    setFindResults(null);
+    setReferenceResults(null);
     setTrackMatches(null);
     setError(null);
     setMatchingInProgress(false);
@@ -343,6 +378,8 @@ export default function HomeQuery() {
         query={lastQuery}
         trackMatches={trackMatches}
         matchingInProgress={matchingInProgress}
+        findResults={findResults}
+        referenceResults={referenceResults}
       />
 
       {/* System Prompts modal */}

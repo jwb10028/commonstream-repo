@@ -7,11 +7,13 @@ import {
   StyleSheet,
   Dimensions,
   Alert,
+  Linking,            // NEW
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { GeneratedPlaylist, SuggestedTrack } from '@/types/Groq';
+import type { FindResult, ReferenceResult } from '@/types/Groq'; // UPDATED
 import { TrackMatchingResponse } from '@/types/TrackMatching';
 import { PlaylistCreationService } from '@/services/PlaylistCreationAPI';
 import { useSpotifyAuth } from '@/hooks/useSpotifyAuth';
@@ -26,6 +28,12 @@ interface QueryModalProps {
   query?: string;
   trackMatches?: TrackMatchingResponse | null;
   matchingInProgress?: boolean;
+
+  // FIND mode
+  findResults?: FindResult[] | null;
+
+  // REFS mode
+  referenceResults?: ReferenceResult[] | null; // NEW
 }
 
 export function QueryModal({ 
@@ -36,9 +44,12 @@ export function QueryModal({
   error,
   query,
   trackMatches,
-  matchingInProgress = false 
+  matchingInProgress = false,
+  findResults = null,
+  referenceResults = null, // NEW
 }: QueryModalProps) {
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
+  const [expanded, setExpanded] = useState<Record<number, boolean>>({}); // per-result toggle for Find
   const { tokens } = useSpotifyAuth();
   
   // Theme colors
@@ -46,6 +57,22 @@ export function QueryModal({
   const textColor = useThemeColor({}, 'text');
   const iconColor = useThemeColor({}, 'icon');
   const tintColor = useThemeColor({}, 'tint');
+
+  // Derived flags
+  const isFindMode = !!findResults && findResults.length > 0 && !playlist;
+  const isRefsMode = !!referenceResults && referenceResults.length > 0 && !playlist && !isFindMode; // prioritize find if both ever set
+  const headerTitle = loading
+    ? 'Generating...'
+    : isFindMode
+      ? 'Findings'
+      : isRefsMode
+        ? 'References'
+        : 'Recommendations';
+
+  const loadingEmoji = isFindMode ? '🔎' : isRefsMode ? '🎬' : '🎵';
+  const loadingCopy = loading
+    ? (isFindMode ? 'AI is finding the best answer…' : (isRefsMode ? 'Gathering references…' : 'AI is curating your perfect playlist...'))
+    : 'Finding tracks on Spotify...';
 
   const handleCreatePlaylist = async () => {
     if (!playlist || !trackMatches || !tokens?.access_token) {
@@ -59,8 +86,6 @@ export function QueryModal({
     setIsCreatingPlaylist(true);
     
     try {
-      console.log('🎵 Creating playlist on Spotify...');
-      
       const result = await PlaylistCreationService.createPlaylist({
         playlist,
         trackMatches,
@@ -78,12 +103,7 @@ export function QueryModal({
         Alert.alert(
           'Playlist Created! 🎉',
           `"${result.spotifyPlaylist.name}" has been added to your Spotify library with ${result.summary.tracksAdded} tracks.`,
-          [
-            {
-              text: 'Close',
-              onPress: onClose,
-            },
-          ]
+          [{ text: 'Close', onPress: onClose }]
         );
       } else {
         Alert.alert(
@@ -94,29 +114,21 @@ export function QueryModal({
       }
     } catch (error: unknown) {
       console.error('❌ Playlist creation error:', error);
-      Alert.alert(
-        'Error',
-        'Failed to create playlist. Please try again.',
-        [{ text: 'OK' }]
-      );
+      Alert.alert('Error', 'Failed to create playlist. Please try again.', [{ text: 'OK' }]);
     } finally {
       setIsCreatingPlaylist(false);
     }
   };
+
   return (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={visible}
-      onRequestClose={onClose}
-    >
+    <Modal animationType="slide" transparent visible={visible} onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
         <ThemedView style={[styles.modalContent, { backgroundColor }]}>
           {/* Header */}
           <View style={[styles.header, { backgroundColor, borderBottomColor: iconColor + '33' }]}>
             <View style={styles.headerLeft}>
               <ThemedText type="title" style={[styles.title, { color: textColor }]}>
-                {loading ? 'Generating...' : 'Recommendations'}
+                {headerTitle}
               </ThemedText>
               {query && (
                 <ThemedText style={[styles.queryText, { color: iconColor }]}>
@@ -134,14 +146,9 @@ export function QueryModal({
             {(loading || matchingInProgress) && (
               <View style={[styles.loadingContainer, { backgroundColor }]}>
                 <View style={styles.loadingIcon}>
-                  <ThemedText style={styles.loadingEmoji}>🎵</ThemedText>
+                  <ThemedText style={styles.loadingEmoji}>{loadingEmoji}</ThemedText>
                 </View>
-                <ThemedText style={[styles.loadingText, { color: iconColor }]}>
-                  {loading 
-                    ? "AI is curating your perfect playlist..."
-                    : "Finding tracks on Spotify..."
-                  }
-                </ThemedText>
+                <ThemedText style={[styles.loadingText, { color: iconColor }]}>{loadingCopy}</ThemedText>
               </View>
             )}
 
@@ -155,9 +162,174 @@ export function QueryModal({
               </View>
             )}
 
-            {playlist && !loading && (
+            {/* --- REFERENCE MODE RENDER --- */}
+            {isRefsMode && !loading && (
+              <View style={styles.refsContainer}>
+                {referenceResults!.map((ref, idx) => {
+                  return (
+                    <View
+                      key={idx}
+                      style={[
+                        styles.refsCard,
+                        {
+                          backgroundColor: backgroundColor === '#fff' ? '#F9F9F9' : '#2A2A2A',
+                          borderColor: iconColor + '33',
+                        },
+                      ]}
+                    >
+                      {/* Top line: title + credit */}
+                      <ThemedText type="subtitle" style={[styles.refsTitle, { color: textColor }]}>
+                        {ref.work_title}
+                      </ThemedText>
+                      {!!ref.work_artist_or_credit && (
+                        <ThemedText style={[styles.refsCredit, { color: iconColor }]}>
+                          {ref.work_artist_or_credit}
+                        </ThemedText>
+                      )}
+
+                      {/* Badges row */}
+                      <View style={styles.refsBadgeRow}>
+                        {!!ref.relation && (
+                          <View style={[styles.badge, { borderColor: iconColor + '55' }]}>
+                            <Ionicons name="git-branch-outline" size={12} color={iconColor} />
+                            <ThemedText style={[styles.badgeText, { color: textColor }]}>
+                              {ref.relation}
+                            </ThemedText>
+                          </View>
+                        )}
+                        {!!ref.work_type && (
+                          <View style={[styles.badgeSecondary, { borderColor: iconColor + '33' }]}>
+                            <Ionicons name="pricetag-outline" size={12} color={iconColor} />
+                            <ThemedText style={[styles.badgeText, { color: textColor }]}>
+                              {ref.work_type}
+                            </ThemedText>
+                          </View>
+                        )}
+                        {!!ref.year && (
+                          <View style={[styles.badgeSecondary, { borderColor: iconColor + '33' }]}>
+                            <Ionicons name="calendar-outline" size={12} color={iconColor} />
+                            <ThemedText style={[styles.badgeText, { color: textColor }]}>
+                              {ref.year}
+                            </ThemedText>
+                          </View>
+                        )}
+                        {!!ref.episode && (
+                          <View style={[styles.badgeSecondary, { borderColor: iconColor + '33' }]}>
+                            <Ionicons name="tv-outline" size={12} color={iconColor} />
+                            <ThemedText style={[styles.badgeText, { color: textColor }]}>
+                              {ref.episode}
+                            </ThemedText>
+                          </View>
+                        )}
+                        {!!ref.timestamp && (
+                          <View style={[styles.badgeSecondary, { borderColor: iconColor + '33' }]}>
+                            <Ionicons name="time-outline" size={12} color={iconColor} />
+                            <ThemedText style={[styles.badgeText, { color: textColor }]}>
+                              {ref.timestamp}
+                            </ThemedText>
+                          </View>
+                        )}
+                      </View>
+
+                      {/* Note / reasoning */}
+                      {!!ref.note && (
+                        <ThemedText style={[styles.refsNote, { color: textColor }]}>
+                          {ref.note}
+                        </ThemedText>
+                      )}
+                      {!!ref.reasoning && (
+                        <View style={styles.refsReasoningRow}>
+                          <Ionicons name="bulb-outline" size={14} color={iconColor} />
+                          <ThemedText style={[styles.refsReasoning, { color: iconColor }]}>
+                            {ref.reasoning}
+                          </ThemedText>
+                        </View>
+                      )}
+
+                      {/* Evidence */}
+                      <View style={styles.refsEvidenceRow}>
+                        {!!ref.evidence_source && (
+                          <View style={[styles.badgeSecondary, { borderColor: iconColor + '33' }]}>
+                            <Ionicons name="newspaper-outline" size={12} color={iconColor} />
+                            <ThemedText style={[styles.badgeText, { color: textColor }]}>
+                              {ref.evidence_source}
+                            </ThemedText>
+                          </View>
+                        )}
+                      </View>
+
+                      {!!ref.evidence_url && (
+                        <TouchableOpacity
+                          onPress={() => Linking.openURL(ref.evidence_url!)}
+                          style={[styles.evidenceButton, { borderColor: tintColor, backgroundColor: backgroundColor }]}
+                        >
+                          <Ionicons name="open-outline" size={16} color={tintColor} />
+                          <ThemedText style={[styles.evidenceButtonText, { color: tintColor }]}>
+                            Open source
+                          </ThemedText>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+
+            {/* --- FIND MODE RENDER --- */}
+            {isFindMode && !loading && (
+              <View style={styles.findContainer}>
+                {findResults!.map((res, idx) => {
+                  const isOpen = !!expanded[idx];
+                  return (
+                    <View
+                      key={idx}
+                      style={[
+                        styles.findCard,
+                        {
+                          backgroundColor: backgroundColor === '#fff' ? '#F9F9F9' : '#2A2A2A',
+                          borderColor: iconColor + '33',
+                        },
+                      ]}
+                    >
+                      <ThemedText type="subtitle" style={[styles.findAnswer, { color: textColor }]}>
+                        {res.answer}
+                      </ThemedText>
+
+                      {res.reasoning ? (
+                        <View style={styles.findReasoningRow}>
+                          <Ionicons name="bulb" size={14} color={iconColor} />
+                          <ThemedText style={[styles.findReasoning, { color: iconColor }]}>
+                            {res.reasoning}
+                          </ThemedText>
+                        </View>
+                      ) : null}
+
+                      <TouchableOpacity
+                        onPress={() => setExpanded(prev => ({ ...prev, [idx]: !prev[idx] }))}
+                        style={styles.contextToggle}
+                      >
+                        <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={16} color={iconColor} />
+                        <ThemedText style={[styles.contextToggleText, { color: textColor }]}>
+                          {isOpen ? 'Hide context' : 'Show context'}
+                        </ThemedText>
+                      </TouchableOpacity>
+
+                      {isOpen && (
+                        <View style={[styles.findContext, { borderColor: iconColor + '33' }]}>
+                          <ThemedText style={[styles.findContextText, { color: iconColor }]}>
+                            {res.context}
+                          </ThemedText>
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+
+            {/* --- PLAYLIST MODE RENDER --- */}
+            {!isFindMode && !isRefsMode && playlist && !loading && (
               <>
-                {/* Show matching progress if in progress */}
                 {matchingInProgress && (
                   <View style={styles.matchingProgressContainer}>
                     <ThemedText style={styles.matchingProgressText}>
@@ -166,7 +338,6 @@ export function QueryModal({
                   </View>
                 )}
 
-                {/* Playlist Info */}
                 <View style={[styles.playlistInfo, { backgroundColor: backgroundColor === '#fff' ? '#F9F9F9' : '#2A2A2A', borderColor: iconColor + '33' }]}>
                   <ThemedText type="subtitle" style={[styles.playlistName, { color: textColor }]}>
                     {playlist.name}
@@ -191,7 +362,6 @@ export function QueryModal({
                   </View>
                 </View>
 
-                {/* Tracks List */}
                 <View style={styles.tracksContainer}>
                   {playlist.tracks.map((track: SuggestedTrack, index: number) => (
                     <View key={index} style={[styles.trackItem, { backgroundColor, borderColor: iconColor + '33' }]}>
@@ -228,8 +398,31 @@ export function QueryModal({
             )}
           </ScrollView>
 
-          {/* Footer Actions */}
-          {playlist && !loading && (
+          {/* Footer — REFS MODE */}
+          {isRefsMode && !loading && (
+            <View style={[styles.footer, { backgroundColor, borderTopColor: iconColor + '33' }]}>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor, borderColor: iconColor + '66' }]}
+                onPress={onClose}
+              >
+                <Ionicons name="close" size={18} color={iconColor} />
+                <ThemedText style={[styles.actionButtonText, { color: textColor }]}>Close</ThemedText>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Footer — FIND MODE */}
+          {isFindMode && !loading && (
+            <View style={[styles.footer, { backgroundColor, borderTopColor: iconColor + '33' }]}>
+              <TouchableOpacity style={[styles.actionButton, { backgroundColor, borderColor: iconColor + '66' }]} onPress={onClose}>
+                <Ionicons name="close" size={18} color={iconColor} />
+                <ThemedText style={[styles.actionButtonText, { color: textColor }]}>Close</ThemedText>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Footer — PLAYLIST MODE */}
+          {!isFindMode && !isRefsMode && playlist && !loading && (
             <View style={[styles.footer, { backgroundColor, borderTopColor: iconColor + '33' }]}>
               <TouchableOpacity style={[styles.actionButton, { backgroundColor, borderColor: iconColor + '66' }]} onPress={onClose}>
                 <Ionicons name="close" size={18} color={iconColor} />
@@ -365,6 +558,134 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 
+  // --- REFS styles ---
+  refsContainer: {
+    gap: 12,
+  },
+  refsCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 16,
+  },
+  refsTitle: {
+    marginBottom: 4,
+  },
+  refsCredit: {
+    fontSize: 13,
+    marginBottom: 8,
+  },
+  refsBadgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 10,
+  },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  badgeSecondary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+    opacity: 0.9,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  refsNote: {
+    marginBottom: 8,
+    lineHeight: 18,
+  },
+  refsReasoningRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    marginBottom: 8,
+  },
+  refsReasoning: {
+    fontSize: 12,
+    color: '#888',
+    fontStyle: 'italic',
+    lineHeight: 16,
+    flex: 1,
+  },
+  refsEvidenceRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 4,
+    marginBottom: 10,
+  },
+  evidenceButton: {
+    flexDirection: 'row',
+    alignSelf: 'flex-start',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  evidenceButtonText: {
+    fontWeight: '700',
+    fontSize: 12,
+  },
+
+  // --- FIND styles ---
+  findContainer: {
+    gap: 12,
+  },
+  findCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 16,
+  },
+  findAnswer: {
+    marginBottom: 8,
+  },
+  findReasoningRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    marginBottom: 10,
+  },
+  findReasoning: {
+    fontSize: 13,
+    fontStyle: 'italic',
+    lineHeight: 18,
+    flex: 1,
+  },
+  contextToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+  },
+  contextToggleText: {
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  findContext: {
+    borderTopWidth: 1,
+    paddingTop: 10,
+    marginTop: 6,
+  },
+  findContextText: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+
   // Playlist Info Styles
   playlistInfo: {
     marginBottom: 24,
@@ -470,7 +791,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   primaryButton: {
-    // backgroundColor and borderColor set dynamically
+    // dynamic
   },
   actionButtonText: {
     fontWeight: '600',
@@ -480,7 +801,7 @@ const styles = StyleSheet.create({
     color: 'white',
   },
   disabledButton: {
-    // backgroundColor and borderColor set dynamically
+    // dynamic
   },
 
   // Matching Progress Styles
