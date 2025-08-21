@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { GeneratedPlaylist, SuggestedTrack } from '@/types/Groq';
-import type { FindResult, ReferenceResult } from '@/types/Groq'; // UPDATED
+import type { FindResult, ReferenceResult, MusoSearchResponse, MusoSearchRequest } from '@/types/Groq'; // UPDATED
 import { TrackMatchingResponse } from '@/types/TrackMatching';
 import { PlaylistCreationService } from '@/services/PlaylistCreationAPI';
 import { useSpotifyAuth } from '@/hooks/useSpotifyAuth';
@@ -33,7 +33,11 @@ interface QueryModalProps {
   findResults?: FindResult[] | null;
 
   // REFS mode
-  referenceResults?: ReferenceResult[] | null; // NEW
+  referenceResults?: ReferenceResult[] | null; 
+
+  // MUSO mode
+  musoResults?: MusoSearchResponse | null;      
+  musoRequest?: MusoSearchRequest | null;  
 }
 
 export function QueryModal({ 
@@ -46,7 +50,9 @@ export function QueryModal({
   trackMatches,
   matchingInProgress = false,
   findResults = null,
-  referenceResults = null, // NEW
+  referenceResults = null,
+  musoResults = null,          
+  musoRequest = null, 
 }: QueryModalProps) {
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
   const [expanded, setExpanded] = useState<Record<number, boolean>>({}); // per-result toggle for Find
@@ -60,7 +66,9 @@ export function QueryModal({
 
   // Derived flags
   const isFindMode = !!findResults && findResults.length > 0 && !playlist;
-  const isRefsMode = !!referenceResults && referenceResults.length > 0 && !playlist && !isFindMode; // prioritize find if both ever set
+  const isRefsMode = !!referenceResults && referenceResults.length > 0 && !playlist && !isFindMode;
+  const isMusoMode = !!musoResults && !playlist && !isFindMode && !isRefsMode;
+  
   const headerTitle = loading
     ? 'Generating...'
     : isFindMode
@@ -69,10 +77,100 @@ export function QueryModal({
         ? 'References'
         : 'Recommendations';
 
-  const loadingEmoji = isFindMode ? '🔎' : isRefsMode ? '🎬' : '🎵';
+  const loadingEmoji = isFindMode ? '🔎' : isRefsMode ? '🎬' : isMusoMode ? '🎧' : '🎵';
   const loadingCopy = loading
-    ? (isFindMode ? 'AI is finding the best answer…' : (isRefsMode ? 'Gathering references…' : 'AI is curating your perfect playlist...'))
+    ? isFindMode
+      ? 'AI is finding the best answer…'
+      : isRefsMode
+        ? 'Gathering references…'
+        : isMusoMode
+          ? 'Querying Muso…'
+          : 'AI is curating your perfect playlist...'
     : 'Finding tracks on Spotify...';
+
+  // --- helpers (Muso) ---
+  const openBestUrl = (item: any) => {
+    const primary = item?.href as string | undefined;
+    const fallback =
+      (Array.isArray(item?.external_urls) && item.external_urls[0]?.url) ||
+      (Array.isArray(item?.externalUrls) && item.externalUrls[0]?.url); // safety for alt casing
+    const url = primary || fallback;
+    if (url) Linking.openURL(url).catch(() => Alert.alert('Unable to open link'));
+  };
+
+  const SectionHeader = ({ title, total }: { title: string; total?: number }) => (
+    <View style={styles.musoSectionHeader}>
+      <ThemedText type="subtitle" style={[styles.musoSectionTitle, { color: textColor }]}>
+        {title}
+      </ThemedText>
+      {typeof total === 'number' && (
+        <ThemedText style={[styles.musoSectionTotal, { color: iconColor }]}>{total}</ThemedText>
+      )}
+    </View>
+  );
+
+  const MusoItemCard = ({
+    item,
+    kind,
+  }: {
+    item: any;
+    kind: 'profile' | 'organization' | 'album' | 'track';
+  }) => (
+    <View
+      style={[
+        styles.musoCard,
+        {
+          backgroundColor: backgroundColor === '#fff' ? '#F9F9F9' : '#2A2A2A',
+          borderColor: iconColor + '33',
+        },
+      ]}
+    >
+      <View style={styles.musoCardHeader}>
+        <ThemedText type="defaultSemiBold" style={{ color: textColor, flex: 1 }}>
+          {item?.name ?? '(untitled)'}
+        </ThemedText>
+        <View style={[styles.badgeSecondary, { borderColor: iconColor + '33' }]}>
+          <Ionicons name="pricetag-outline" size={12} color={iconColor} />
+          <ThemedText style={[styles.badgeText, { color: textColor }]}>{kind}</ThemedText>
+        </View>
+      </View>
+
+      {/* Secondary line(s) based on kind */}
+      {kind === 'track' && (
+        <ThemedText style={{ color: iconColor, marginTop: 4 }}>
+          {Array.isArray(item?.artists) && item.artists.length
+            ? `Artists: ${item.artists.map((a: any) => a.name).join(', ')}`
+            : item?.artist
+            ? `Artist: ${item.artist}`
+            : null}
+        </ThemedText>
+      )}
+      {kind === 'album' && (
+        <ThemedText style={{ color: iconColor, marginTop: 4 }}>
+          {item?.release_date ? `Released: ${item.release_date}` : null}
+        </ThemedText>
+      )}
+      {kind === 'organization' && item?.org_type && (
+        <ThemedText style={{ color: iconColor, marginTop: 4 }}>{item.org_type}</ThemedText>
+      )}
+      {kind === 'profile' && Array.isArray(item?.roles) && item.roles.length > 0 && (
+        <ThemedText style={{ color: iconColor, marginTop: 4 }}>
+          Roles: {item.roles.join(', ')}
+        </ThemedText>
+      )}
+
+      {/* Actions */}
+      <View style={styles.musoActionsRow}>
+        <TouchableOpacity
+          onPress={() => openBestUrl(item)}
+          style={[styles.evidenceButton, { borderColor: tintColor, backgroundColor: backgroundColor }]}
+        >
+          <Ionicons name="open-outline" size={16} color={tintColor} />
+          <ThemedText style={[styles.evidenceButtonText, { color: tintColor }]}>Open</ThemedText>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 
   const handleCreatePlaylist = async () => {
     if (!playlist || !trackMatches || !tokens?.access_token) {
@@ -159,6 +257,85 @@ export function QueryModal({
                   <ThemedText style={styles.errorTitle}>Oops!</ThemedText>
                   <ThemedText style={styles.errorText}>{error}</ThemedText>
                 </View>
+              </View>
+            )}
+
+            {/* --- MUSO MODE RENDER --- */}
+            {isMusoMode && !loading && musoResults && (
+              <View style={{ gap: 14 }}>
+                {/* Request summary */}
+                {musoRequest && (
+                  <View
+                    style={[
+                      styles.playlistInfo,
+                      {
+                        backgroundColor: backgroundColor === '#fff' ? '#F3F6FF' : '#1F2433',
+                        borderColor: iconColor + '33',
+                      },
+                    ]}
+                  >
+                    <ThemedText type="defaultSemiBold" style={{ color: textColor, marginBottom: 6 }}>
+                      Request to Muso
+                    </ThemedText>
+                    <ThemedText style={{ color: textColor }}>Keyword: {musoRequest.keyword}</ThemedText>
+                    <ThemedText style={{ color: iconColor, marginTop: 2 }}>
+                      Types: {musoRequest.type.join(', ')}
+                    </ThemedText>
+                    {musoRequest.childCredits && musoRequest.childCredits.length > 0 && (
+                      <ThemedText style={{ color: iconColor, marginTop: 2 }}>
+                        Credits: {musoRequest.childCredits.join(', ')}
+                      </ThemedText>
+                    )}
+                  </View>
+                )}
+
+                {/* Profiles */}
+                {musoResults.profiles?.items?.length > 0 && (
+                  <>
+                    <SectionHeader title="Profiles" total={musoResults.profiles.total} />
+                    <View style={{ gap: 10 }}>
+                      {musoResults.profiles.items.map((it: any, i: number) => (
+                        <MusoItemCard key={`prof-${i}`} item={it} kind="profile" />
+                      ))}
+                    </View>
+                  </>
+                )}
+
+                {/* Organizations */}
+                {musoResults.organizations?.items?.length > 0 && (
+                  <>
+                    <SectionHeader title="Organizations" total={musoResults.organizations.total} />
+                    <View style={{ gap: 10 }}>
+                      {musoResults.organizations.items.map((it: any, i: number) => (
+                        <MusoItemCard key={`org-${i}`} item={it} kind="organization" />
+                      ))}
+                    </View>
+                  </>
+                )}
+
+                {/* Albums */}
+                {musoResults.albums?.items?.length > 0 && (
+                  <>
+                    <SectionHeader title="Albums" total={musoResults.albums.total} />
+                    <View style={{ gap: 10 }}>
+                      {musoResults.albums.items.map((it: any, i: number) => (
+                        <MusoItemCard key={`alb-${i}`} item={it} kind="album" />
+                      ))}
+                    </View>
+                  </>
+                )}
+
+                {/* Tracks */}
+                {musoResults.tracks?.items?.length > 0 && (
+                  <>
+                    <SectionHeader title="Tracks" total={musoResults.tracks.total} />
+                    <View style={{ gap: 10 }}>
+                      {musoResults.tracks.items.map((it: any, i: number) => (
+                        <MusoItemCard key={`trk-${i}`} item={it} kind="track" />
+                      ))}
+                    </View>
+                  </>
+                )}
               </View>
             )}
 
@@ -468,6 +645,19 @@ export function QueryModal({
                     </ThemedText>
                   </>
                 )}
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Footer — MUSO */}
+          {isMusoMode && !loading && (
+            <View style={[styles.footer, { backgroundColor, borderTopColor: iconColor + '33' }]}>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor, borderColor: iconColor + '66' }]}
+                onPress={onClose}
+              >
+                <Ionicons name="close" size={18} color={iconColor} />
+                <ThemedText style={[styles.actionButtonText, { color: textColor }]}>Close</ThemedText>
               </TouchableOpacity>
             </View>
           )}
@@ -816,6 +1006,36 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     fontWeight: '500',
+  },
+  musoSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 6,
+    marginBottom: 6,
+  },
+  musoSectionTitle: {
+    fontWeight: '700',
+  },
+  musoSectionTotal: {
+    fontSize: 12,
+    fontWeight: '600',
+    opacity: 0.8,
+  },
+  musoCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 14,
+  },
+  musoCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  musoActionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
   },
 });
 

@@ -17,7 +17,7 @@ import KeyboardToolbar from './keyboard-toolbar';
 import QueryModal from '../modals/query_modal';
 import { GroqService } from '@/services/GroqAPI';
 import { TrackMatchingService } from '@/services/TrackMatchingAPI';
-import type { GeneratedPlaylist, FindResult, ReferenceResult } from '@/types/Groq';
+import type { GeneratedPlaylist, FindResult, ReferenceResult, MusoSearchResponse, MusoSearchRequest } from '@/types/Groq';
 import type { TrackMatchingResponse } from '@/types/TrackMatching';
 import { useSpotifyAuth } from '@/hooks/useSpotifyAuth';
 import useSysPromptStorage from '@/hooks/useSysPromptStorage';
@@ -43,6 +43,8 @@ export default function HomeQuery() {
   const [playlist, setPlaylist] = useState<GeneratedPlaylist | null>(null);
   const [findResults, setFindResults] = useState<FindResult[] | null>(null);
   const [referenceResults, setReferenceResults] = useState<ReferenceResult[] | null>(null);
+  const [musoResults, setMusoResults] = useState<MusoSearchResponse | null>(null);
+  const [musoRequest, setMusoRequest] = useState<MusoSearchRequest | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -138,6 +140,8 @@ export default function HomeQuery() {
     setFindResults(null);
     setTrackMatches(null);
     setReferenceResults(null);
+    setMusoResults(null);
+    setMusoRequest(null);
     setMatchingInProgress(false);
     setModalVisible(true);
 
@@ -198,24 +202,36 @@ export default function HomeQuery() {
           setError(findResp.error || 'No results found for your request');
         }
         setLoading(false);
-      } else if (mode.key === 'refs') {
+      } else if (mode.key === "refs") {
         const compositePrompt = await buildCompositePrompt(userQuery);
         // console.log('Composite prompt:', compositePrompt);
 
         const referenceResp = await GroqService.generateReference({
           prompt: compositePrompt,
-          preferences: { maxTracks: 30, explicit: true, energy: 'medium' },
+          preferences: { maxTracks: 30, explicit: true, energy: "medium" },
         });
 
         if (referenceResp.success && referenceResp.data) {
           setReferenceResults(referenceResp.data);
         } else {
-          setError(referenceResp.error || 'Failed to generate reference');
+          setError(referenceResp.error || "Failed to generate reference");
+        }
+      } else if (mode.key === "muso") {
+        // you can include the system/taste blocks, but Muso just needs the user's intent
+        const compositePrompt = await buildCompositePrompt(userQuery);
+
+        const musoResp = await GroqService.verifyWithMuso(compositePrompt);
+        if (musoResp.success && musoResp.data) {
+          // optional: if verifyWithMuso returns the request you sent to Muso, capture it
+          // setMusoRequest(musoResp.request ?? null);
+          setMusoResults(musoResp.data);
+        } else {
+          setError(musoResp.error || "Failed to fetch Muso results");
         }
       } else {
         // Stub for other modes (they still benefit from system prompts now)
         setLoading(false);
-        setError('This mode is not implemented yet.');
+        setError("This mode is not implemented yet.");
       }
     } catch {
       setError('Failed to process request. Please try again.');
@@ -230,6 +246,8 @@ export default function HomeQuery() {
     setPlaylist(null);
     setFindResults(null);
     setReferenceResults(null);
+    setMusoResults(null);
+    setMusoRequest(null);
     setTrackMatches(null);
     setError(null);
     setMatchingInProgress(false);
@@ -380,6 +398,8 @@ export default function HomeQuery() {
         matchingInProgress={matchingInProgress}
         findResults={findResults}
         referenceResults={referenceResults}
+        musoResults={musoResults}
+        musoRequest={musoRequest}
       />
 
       {/* System Prompts modal */}

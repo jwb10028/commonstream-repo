@@ -116,6 +116,8 @@ export class FindParseError extends Error {
   }
 }
 
+// =================== REFERENCE =================================
+
 export interface ReferenceResult {
   relation: 'sampled_in' | 'samples' | 'soundtrack_in';
   work_title: string;
@@ -139,5 +141,114 @@ export class ReferenceParseError extends Error {
   constructor(message: string, public rawResponse?: string) {
     super(message);
     this.name = 'ReferenceParseError';
+  }
+}
+
+
+// =================== MUSO =================================
+
+// Common primitives
+export type MusoEntityType = 'profile' | 'organization' | 'album' | 'track';
+
+export interface MusoImage {
+  url: string;
+  width?: number;
+  height?: number;
+}
+
+export interface MusoExternalURL {
+  label?: string;           // e.g., "muso", "spotify", "apple_music"
+  url: string;
+}
+
+export interface MusoBaseEntity {
+  id: string;               // Muso internal id or stable handle
+  type: MusoEntityType;
+  name: string;
+  href?: string;            // canonical Muso web URL, if present
+  images?: MusoImage[];
+  external_urls?: MusoExternalURL[];
+  // Provider may return additional fields—keep them
+  [key: string]: unknown;
+}
+
+// Entity variants
+export interface MusoProfile extends MusoBaseEntity {
+  type: 'profile';
+  roles?: string[];         // e.g., ["producer","engineer","composer"]
+  country?: string;
+}
+
+export interface MusoOrganization extends MusoBaseEntity {
+  type: 'organization';
+  org_type?: 'label' | 'publisher' | 'studio' | 'collective' | 'other';
+}
+
+export interface MusoAlbum extends MusoBaseEntity {
+  type: 'album';
+  artists?: Array<Pick<MusoProfile, 'id' | 'name'>>;
+  release_date?: string;    // ISO or year-only
+  upc?: string;
+}
+
+export interface MusoTrack extends MusoBaseEntity {
+  type: 'track';
+  artists?: Array<Pick<MusoProfile, 'id' | 'name'>>;
+  album?: Pick<MusoAlbum, 'id' | 'name'>;
+  isrc?: string;
+  duration_ms?: number;
+  preview_url?: string;
+}
+
+// Union for a single item (handy for generic handling)
+export type MusoResult = MusoProfile | MusoOrganization | MusoAlbum | MusoTrack;
+
+// Section wrapper used in the success payload
+export interface MusoSection<T extends MusoResult = MusoResult> {
+  items: T[];               // Array of concrete entities
+  total: number;            // Total count available (not just returned)
+}
+
+// Top-level search response envelope (mirrors the doc screenshot)
+export interface MusoSearchResponse {
+  profiles: MusoSection<MusoProfile>;
+  organizations: MusoSection<MusoOrganization>;
+  albums: MusoSection<MusoAlbum>;
+  tracks: MusoSection<MusoTrack>;
+  // If Muso adds pagination tokens or request echo fields later:
+  next_page_token?: string;
+  prev_page_token?: string;
+  query?: string;
+  [key: string]: unknown;
+}
+
+// Request you’ll build from the user prompt (what your Groq parser will produce)
+export const MUSO_TYPES = ['profile', 'album', 'track', 'organization'] as const;
+export type MusoType = (typeof MUSO_TYPES)[number];
+
+export interface MusoSearchRequest {
+  keyword: string;                // <-- REQUIRED by Muso /search
+  type: MusoType[];               // ["profile","track",...]
+  childCredits?: string[];        // e.g., ["Composer","Producer"]
+  limit?: number;
+  offset?: number;
+  releaseDateStart?: string;      // "YYYY-MM-DD"
+  releaseDateEnd?: string;        // "YYYY-MM-DD"
+}
+// Your service response wrapper (aligned to your pattern above)
+export interface MusoGenerationResponse
+  extends GroqServiceResponse<MusoSearchResponse> {}
+
+// (Optional) Narrow type guards if you want runtime safety
+export const isMusoProfile = (x: MusoResult): x is MusoProfile => x?.type === 'profile';
+export const isMusoOrganization = (x: MusoResult): x is MusoOrganization => x?.type === 'organization';
+export const isMusoAlbum = (x: MusoResult): x is MusoAlbum => x?.type === 'album';
+export const isMusoTrack = (x: MusoResult): x is MusoTrack => x?.type === 'track';
+
+// Fix the error name while we’re here
+export class MusoParseError extends Error {
+  constructor(message: string, public rawResponse?: string) {
+    super(message);
+    this.name = 'MusoParseError';
   }
 }

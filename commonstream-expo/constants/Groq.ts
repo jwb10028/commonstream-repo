@@ -64,24 +64,6 @@ Additional preferences (hints only):
 Return only the JSON array with no additional text.`
 };
 
-
-export const DEFAULT_PREFERENCES = {
-  maxTracks: 20,
-  explicit: true,
-  energy: 'medium' as const,
-  mood: 'any',
-  genres: [] as string[]
-};
-
-export const GROQ_ERROR_MESSAGES = {
-  API_KEY_MISSING: 'Groq API key is not configured',
-  NETWORK_ERROR: 'Failed to connect to Groq API',
-  RATE_LIMIT: 'Rate limit exceeded. Please try again later',
-  INVALID_RESPONSE: 'Invalid response format from Groq API',
-  TIMEOUT: 'Request timed out. Please try again',
-  PARSE_ERROR: 'Failed to parse playlist data from AI response'
-};
-
 export const REFERENCE_GENERATION_PROMPTS = {
   SYSTEM: `You are a music references assistant for "References" mode.
 Return ONLY valid JSON with this exact structure: a JSON array of objects.
@@ -130,4 +112,29 @@ Additional preferences (hints only):
 
 Return only the JSON array with no additional text.`
 };
+
+export const MUSO_GENERATION_PROMPTS = {
+  // muso system generation prompts here
+};
+
+
+export const DEFAULT_PREFERENCES = {
+  maxTracks: 20,
+  explicit: true,
+  energy: 'medium' as const,
+  mood: 'any',
+  genres: [] as string[]
+};
+
+
+export const GROQ_ERROR_MESSAGES = {
+  API_KEY_MISSING: 'Groq API key is not configured',
+  NETWORK_ERROR: 'Failed to connect to Groq API',
+  RATE_LIMIT: 'Rate limit exceeded. Please try again later',
+  INVALID_RESPONSE: 'Invalid response format from Groq API',
+  TIMEOUT: 'Request timed out. Please try again',
+  PARSE_ERROR: 'Failed to parse playlist data from AI response'
+};
+
+
 
