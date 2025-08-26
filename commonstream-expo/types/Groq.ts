@@ -145,7 +145,7 @@ export class ReferenceParseError extends Error {
 }
 
 
-// =================== MUSO =================================
+// =================== MUSO TYPES (rewritten to match {code,result,data}) ===================
 
 // Common primitives
 export type MusoEntityType = 'profile' | 'organization' | 'album' | 'track';
@@ -157,25 +157,36 @@ export interface MusoImage {
 }
 
 export interface MusoExternalURL {
-  label?: string;           // e.g., "muso", "spotify", "apple_music"
+  label?: string;                  // e.g., "muso", "spotify", "apple_music"
   url: string;
 }
 
+export interface MusoLinks {
+  web?: string;                    // e.g., canonical web page
+  homepage?: string;
+  [key: string]: unknown;
+}
+
 export interface MusoBaseEntity {
-  id: string;               // Muso internal id or stable handle
+  id: string;                      // Muso internal id or stable handle
   type: MusoEntityType;
   name: string;
-  href?: string;            // canonical Muso web URL, if present
+  href?: string;                   // canonical Muso web URL, if present
   images?: MusoImage[];
+
+  // Providers may return any of these URL variants
   external_urls?: MusoExternalURL[];
-  // Provider may return additional fields—keep them
+  externalUrls?: MusoExternalURL[];
+  links?: MusoLinks;
+
+  // Allow forward-compat
   [key: string]: unknown;
 }
 
 // Entity variants
 export interface MusoProfile extends MusoBaseEntity {
   type: 'profile';
-  roles?: string[];         // e.g., ["producer","engineer","composer"]
+  roles?: Array<string | { name?: string }>; // accept "producer" or {name:"producer"}
   country?: string;
 }
 
@@ -187,65 +198,82 @@ export interface MusoOrganization extends MusoBaseEntity {
 export interface MusoAlbum extends MusoBaseEntity {
   type: 'album';
   artists?: Array<Pick<MusoProfile, 'id' | 'name'>>;
-  release_date?: string;    // ISO or year-only
+  release_date?: string;           // ISO or year-only
+  releaseDate?: string;            // provider alt
   upc?: string;
 }
 
 export interface MusoTrack extends MusoBaseEntity {
   type: 'track';
   artists?: Array<Pick<MusoProfile, 'id' | 'name'>>;
+  artist?: string;                 // sometimes single field
   album?: Pick<MusoAlbum, 'id' | 'name'>;
   isrc?: string;
   duration_ms?: number;
   preview_url?: string;
 }
 
-// Union for a single item (handy for generic handling)
+// Union for a single item
 export type MusoResult = MusoProfile | MusoOrganization | MusoAlbum | MusoTrack;
 
-// Section wrapper used in the success payload
+// Paged section
 export interface MusoSection<T extends MusoResult = MusoResult> {
-  items: T[];               // Array of concrete entities
-  total: number;            // Total count available (not just returned)
+  items: T[];
+  total: number;
 }
 
-// Top-level search response envelope (mirrors the doc screenshot)
-export interface MusoSearchResponse {
-  profiles: MusoSection<MusoProfile>;
-  organizations: MusoSection<MusoOrganization>;
-  albums: MusoSection<MusoAlbum>;
-  tracks: MusoSection<MusoTrack>;
-  // If Muso adds pagination tokens or request echo fields later:
+// ---- What the API returns in your logs ----
+// Top-level envelope
+export interface MusoSearchEnvelope {
+  code: number;                    // e.g., 200
+  result: string;                  // e.g., "ok"
+  data: MusoSearchData;
+  // Leave room for future fields
+  [key: string]: unknown;
+}
+
+// data payload
+export interface MusoSearchData {
+  profiles:       MusoSection<MusoProfile>;
+  organizations:  MusoSection<MusoOrganization>;
+  albums:         MusoSection<MusoAlbum>;
+  tracks:         MusoSection<MusoTrack>;
+
+  // Optional pagination echoes if added by provider later
   next_page_token?: string;
   prev_page_token?: string;
   query?: string;
   [key: string]: unknown;
 }
 
-// Request you’ll build from the user prompt (what your Groq parser will produce)
+// For convenience in your component props
+export type MusoSearchResponse = MusoSearchEnvelope;
+
+// ---------------- Request ----------------
 export const MUSO_TYPES = ['profile', 'album', 'track', 'organization'] as const;
 export type MusoType = (typeof MUSO_TYPES)[number];
 
 export interface MusoSearchRequest {
-  keyword: string;                // <-- REQUIRED by Muso /search
-  type: MusoType[];               // ["profile","track",...]
-  childCredits?: string[];        // e.g., ["Composer","Producer"]
-  limit?: number;
-  offset?: number;
-  releaseDateStart?: string;      // "YYYY-MM-DD"
-  releaseDateEnd?: string;        // "YYYY-MM-DD"
+  keyword: string;                 // REQUIRED by /search
+  type: MusoType[];                // e.g., ["profile","track"]
+  childCredits?: string[];         // e.g., ["Composer","Producer"]
+  limit?: number;                  // 1..50
+  offset?: number;                 // >= 0
+  releaseDateStart?: string;       // "YYYY-MM-DD"
+  releaseDateEnd?: string;         // "YYYY-MM-DD"
 }
-// Your service response wrapper (aligned to your pattern above)
-export interface MusoGenerationResponse
-  extends GroqServiceResponse<MusoSearchResponse> {}
 
-// (Optional) Narrow type guards if you want runtime safety
+// ---------------- Result wrapper ----------------
+// If you use a common service response wrapper:
+export interface MusoGenerationResponse extends GroqServiceResponse<MusoSearchEnvelope> {}
+
+// ---------------- Type guards ----------------
 export const isMusoProfile = (x: MusoResult): x is MusoProfile => x?.type === 'profile';
 export const isMusoOrganization = (x: MusoResult): x is MusoOrganization => x?.type === 'organization';
 export const isMusoAlbum = (x: MusoResult): x is MusoAlbum => x?.type === 'album';
 export const isMusoTrack = (x: MusoResult): x is MusoTrack => x?.type === 'track';
 
-// Fix the error name while we’re here
+// Optional parse error class
 export class MusoParseError extends Error {
   constructor(message: string, public rawResponse?: string) {
     super(message);

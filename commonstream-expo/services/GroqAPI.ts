@@ -35,15 +35,15 @@ import {
   MUSO_TYPES
 } from '@/types/Groq';
 
+import { MUSO_CONFIG } from '@/constants/Muso';
+
 // Allowed enums per Muso docs
 const isMusoType = (v: unknown): v is MusoType =>
   typeof v === 'string' && (MUSO_TYPES as readonly string[]).includes(v as MusoType);
 
 // If you keep configs together, feel free to promote this to /constants
-const MUSO_API_KEY =
-  process.env.NEXT_PUBLIC_MUSO_API_KEY ||
-  process.env.MUSO_API_KEY ||
-  '';
+const MUSO_API_KEY = MUSO_CONFIG.API_KEY;
+
 
 export class GroqService {
   /**
@@ -636,7 +636,7 @@ export class GroqService {
    */
   public static async verifyWithMuso(
     userPrompt: string
-  ): Promise<MusoGenerationResponse> {
+  ): Promise<MusoGenerationResponse> {    
     try {
       if (!userPrompt || userPrompt.trim().length === 0) {
         return {
@@ -679,15 +679,19 @@ export class GroqService {
           errorCode: "INVALID_RESPONSE",
         };
       }
+      console.log("GROQ RESPONSE: ", groqResp.choices[0].message.content);
 
       // 2) Parse Groq JSON → Muso request
       const musoReq = this.parseMusoResponse(
         groqResp.choices[0].message.content
       );
 
+      console.log("MUSO REQUEST: ", musoReq);
+
       // 3) Call Muso
       const muso = new MusoService(MUSO_API_KEY);
       const musoResp: MusoSearchResponse = await muso.search(musoReq);
+      console.log("MUSO RESPONSE:", musoResp.data.albums);
 
       // 4) Return in your standard wrapper
       const result: MusoGenerationResponse = {

@@ -1,7 +1,8 @@
 // MusoAPI.ts
 import { MusoSearchRequest, MusoSearchResponse } from '../types/Groq';
+import { MUSO_CONFIG } from '@/constants/Muso';
 
-const MUSO_BASE_URL = 'https://api.muso.ai/v1'; // confirm base URL in docs
+const MUSO_BASE_URL = MUSO_CONFIG.API_URL; // confirm base URL in docs
 
 export class MusoService {
   private apiKey: string;

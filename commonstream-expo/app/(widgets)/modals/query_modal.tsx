@@ -7,13 +7,18 @@ import {
   StyleSheet,
   Dimensions,
   Alert,
-  Linking,            // NEW
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { GeneratedPlaylist, SuggestedTrack } from '@/types/Groq';
-import type { FindResult, ReferenceResult, MusoSearchResponse, MusoSearchRequest } from '@/types/Groq'; // UPDATED
+import type {
+  FindResult,
+  ReferenceResult,
+  MusoSearchResponse,
+  MusoSearchRequest,
+} from '@/types/Groq';
 import { TrackMatchingResponse } from '@/types/TrackMatching';
 import { PlaylistCreationService } from '@/services/PlaylistCreationAPI';
 import { useSpotifyAuth } from '@/hooks/useSpotifyAuth';
@@ -33,69 +38,82 @@ interface QueryModalProps {
   findResults?: FindResult[] | null;
 
   // REFS mode
-  referenceResults?: ReferenceResult[] | null; 
+  referenceResults?: ReferenceResult[] | null;
 
   // MUSO mode
-  musoResults?: MusoSearchResponse | null;      
-  musoRequest?: MusoSearchRequest | null;  
+  musoResults?: MusoSearchResponse | null;
+  musoRequest?: MusoSearchRequest | null;
 }
 
-export function QueryModal({ 
-  visible, 
-  onClose, 
-  playlist, 
-  loading = false, 
+export function QueryModal({
+  visible,
+  onClose,
+  playlist,
+  loading = false,
   error,
   query,
   trackMatches,
   matchingInProgress = false,
   findResults = null,
   referenceResults = null,
-  musoResults = null,          
-  musoRequest = null, 
+  musoResults = null,
+  musoRequest = null,
 }: QueryModalProps) {
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
-  const [expanded, setExpanded] = useState<Record<number, boolean>>({}); // per-result toggle for Find
+  const [expanded, setExpanded] = useState<Record<number, boolean>>({});
   const { tokens } = useSpotifyAuth();
-  
+
   // Theme colors
   const backgroundColor = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const iconColor = useThemeColor({}, 'icon');
   const tintColor = useThemeColor({}, 'tint');
 
-  // Derived flags
+  // Mode flags
   const isFindMode = !!findResults && findResults.length > 0 && !playlist;
   const isRefsMode = !!referenceResults && referenceResults.length > 0 && !playlist && !isFindMode;
   const isMusoMode = !!musoResults && !playlist && !isFindMode && !isRefsMode;
-  
+
+  const musoData = musoResults?.data; // Muso payload lives under .data
+
   const headerTitle = loading
     ? 'Generating...'
     : isFindMode
-      ? 'Findings'
-      : isRefsMode
-        ? 'References'
-        : 'Recommendations';
+    ? 'Findings'
+    : isRefsMode
+    ? 'References'
+    : isMusoMode
+    ? 'Muso Results'
+    : 'Recommendations';
 
   const loadingEmoji = isFindMode ? '🔎' : isRefsMode ? '🎬' : isMusoMode ? '🎧' : '🎵';
   const loadingCopy = loading
     ? isFindMode
       ? 'AI is finding the best answer…'
       : isRefsMode
-        ? 'Gathering references…'
-        : isMusoMode
-          ? 'Querying Muso…'
-          : 'AI is curating your perfect playlist...'
+      ? 'Gathering references…'
+      : isMusoMode
+      ? 'Querying Muso…'
+      : 'AI is curating your perfect playlist...'
     : 'Finding tracks on Spotify...';
 
-  // --- helpers (Muso) ---
+  // ---- Helpers (Muso) ----
   const openBestUrl = (item: any) => {
-    const primary = item?.href as string | undefined;
-    const fallback =
-      (Array.isArray(item?.external_urls) && item.external_urls[0]?.url) ||
-      (Array.isArray(item?.externalUrls) && item.externalUrls[0]?.url); // safety for alt casing
-    const url = primary || fallback;
-    if (url) Linking.openURL(url).catch(() => Alert.alert('Unable to open link'));
+    const candidates = [
+      item?.href,
+      item?.url,
+      item?.links?.web,
+      item?.links?.homepage,
+      Array.isArray(item?.external_urls) ? item.external_urls[0]?.url : undefined,
+      Array.isArray(item?.externalUrls) ? item.externalUrls[0]?.url : undefined,
+    ].filter(Boolean) as string[];
+
+    const url = candidates[0];
+    if (url) {
+      Linking.openURL(url).catch(() => Alert.alert('Unable to open link'));
+    } else {
+      Alert.alert('No link available for this item');
+    }
   };
 
   const SectionHeader = ({ title, total }: { title: string; total?: number }) => (
@@ -115,63 +133,87 @@ export function QueryModal({
   }: {
     item: any;
     kind: 'profile' | 'organization' | 'album' | 'track';
-  }) => (
-    <View
-      style={[
-        styles.musoCard,
-        {
-          backgroundColor: backgroundColor === '#fff' ? '#F9F9F9' : '#2A2A2A',
-          borderColor: iconColor + '33',
-        },
-      ]}
-    >
-      <View style={styles.musoCardHeader}>
-        <ThemedText type="defaultSemiBold" style={{ color: textColor, flex: 1 }}>
-          {item?.name ?? '(untitled)'}
-        </ThemedText>
-        <View style={[styles.badgeSecondary, { borderColor: iconColor + '33' }]}>
-          <Ionicons name="pricetag-outline" size={12} color={iconColor} />
-          <ThemedText style={[styles.badgeText, { color: textColor }]}>{kind}</ThemedText>
+  }) => {
+    // roles (profile)
+    const roles =
+      Array.isArray(item?.roles)
+        ? item.roles
+            .map((r: any) => (typeof r === 'string' ? r : r?.name))
+            .filter(Boolean)
+            .join(', ')
+        : undefined;
+
+    // dates
+    const release = item?.release_date || item?.releaseDate;
+
+    // artists (album/track) – accept strings or { name }
+    const artistNames = Array.isArray(item?.artists)
+      ? item.artists
+          .map((a: any) => (typeof a === 'string' ? a : a?.name))
+          .filter(Boolean)
+          .join(', ')
+      : undefined;
+
+    // title/name fallback for different entity shapes
+    const displayTitle = item?.title ?? item?.name ?? '(untitled)';
+
+    return (
+      <View
+        style={[
+          styles.musoCard,
+          {
+            backgroundColor: backgroundColor === '#fff' ? '#F9F9F9' : '#2A2A2A',
+            borderColor: iconColor + '33',
+          },
+        ]}
+      >
+        <View style={styles.musoCardHeader}>
+          <ThemedText type="defaultSemiBold" style={{ color: textColor, flex: 1 }}>
+            {displayTitle}
+          </ThemedText>
+          <View style={[styles.badgeSecondary, { borderColor: iconColor + '33' }]}>
+            <Ionicons name="pricetag-outline" size={12} color={iconColor} />
+            <ThemedText style={[styles.badgeText, { color: textColor }]}>{kind}</ThemedText>
+          </View>
+        </View>
+
+        {/* NEW: show album artists */}
+        {kind === 'album' && artistNames && (
+          <ThemedText style={{ color: iconColor, marginTop: 4 }}>
+            Artists: {artistNames}
+          </ThemedText>
+        )}
+        {kind === 'album' && release && (
+          <ThemedText style={{ color: iconColor, marginTop: 4 }}>Released: {release}</ThemedText>
+        )}
+
+        {kind === 'track' && (
+          <ThemedText style={{ color: iconColor, marginTop: 4 }}>
+            {artistNames ? `Artists: ${artistNames}` : item?.artist ? `Artist: ${item.artist}` : null}
+          </ThemedText>
+        )}
+
+        {kind === 'organization' && item?.org_type && (
+          <ThemedText style={{ color: iconColor, marginTop: 4 }}>{item.org_type}</ThemedText>
+        )}
+        {kind === 'profile' && roles && (
+          <ThemedText style={{ color: iconColor, marginTop: 4 }}>Roles: {roles}</ThemedText>
+        )}
+
+        <View style={styles.musoActionsRow}>
+          <TouchableOpacity
+            onPress={() => openBestUrl(item)}
+            style={[styles.evidenceButton, { borderColor: tintColor, backgroundColor: backgroundColor }]}
+          >
+            <Ionicons name="open-outline" size={16} color={tintColor} />
+            <ThemedText style={[styles.evidenceButtonText, { color: tintColor }]}>Open</ThemedText>
+          </TouchableOpacity>
         </View>
       </View>
+    );
+  };
 
-      {/* Secondary line(s) based on kind */}
-      {kind === 'track' && (
-        <ThemedText style={{ color: iconColor, marginTop: 4 }}>
-          {Array.isArray(item?.artists) && item.artists.length
-            ? `Artists: ${item.artists.map((a: any) => a.name).join(', ')}`
-            : item?.artist
-            ? `Artist: ${item.artist}`
-            : null}
-        </ThemedText>
-      )}
-      {kind === 'album' && (
-        <ThemedText style={{ color: iconColor, marginTop: 4 }}>
-          {item?.release_date ? `Released: ${item.release_date}` : null}
-        </ThemedText>
-      )}
-      {kind === 'organization' && item?.org_type && (
-        <ThemedText style={{ color: iconColor, marginTop: 4 }}>{item.org_type}</ThemedText>
-      )}
-      {kind === 'profile' && Array.isArray(item?.roles) && item.roles.length > 0 && (
-        <ThemedText style={{ color: iconColor, marginTop: 4 }}>
-          Roles: {item.roles.join(', ')}
-        </ThemedText>
-      )}
-
-      {/* Actions */}
-      <View style={styles.musoActionsRow}>
-        <TouchableOpacity
-          onPress={() => openBestUrl(item)}
-          style={[styles.evidenceButton, { borderColor: tintColor, backgroundColor: backgroundColor }]}
-        >
-          <Ionicons name="open-outline" size={16} color={tintColor} />
-          <ThemedText style={[styles.evidenceButtonText, { color: tintColor }]}>Open</ThemedText>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
+  // ---- Playlist creation ----
   const handleCreatePlaylist = async () => {
     if (!playlist || !trackMatches || !tokens?.access_token) {
       Alert.alert(
@@ -182,7 +224,6 @@ export function QueryModal({
     }
 
     setIsCreatingPlaylist(true);
-    
     try {
       const result = await PlaylistCreationService.createPlaylist({
         playlist,
@@ -194,7 +235,7 @@ export function QueryModal({
           onlyHighConfidence: false,
           minConfidenceScore: 50,
           maxTracks: 50,
-        }
+        },
       });
 
       if (result.success && result.spotifyPlaylist) {
@@ -210,8 +251,8 @@ export function QueryModal({
           [{ text: 'OK' }]
         );
       }
-    } catch (error: unknown) {
-      console.error('❌ Playlist creation error:', error);
+    } catch (err) {
+      console.error('❌ Playlist creation error:', err);
       Alert.alert('Error', 'Failed to create playlist. Please try again.', [{ text: 'OK' }]);
     } finally {
       setIsCreatingPlaylist(false);
@@ -239,7 +280,7 @@ export function QueryModal({
             </TouchableOpacity>
           </View>
 
-          {/* Content */}
+          {/* Body */}
           <ScrollView style={[styles.content, { backgroundColor }]} showsVerticalScrollIndicator={false}>
             {(loading || matchingInProgress) && (
               <View style={[styles.loadingContainer, { backgroundColor }]}>
@@ -260,8 +301,8 @@ export function QueryModal({
               </View>
             )}
 
-            {/* --- MUSO MODE RENDER --- */}
-            {isMusoMode && !loading && musoResults && (
+            {/* ---- MUSO MODE ---- */}
+            {isMusoMode && !loading && musoData && (
               <View style={{ gap: 14 }}>
                 {/* Request summary */}
                 {musoRequest && (
@@ -281,20 +322,20 @@ export function QueryModal({
                     <ThemedText style={{ color: iconColor, marginTop: 2 }}>
                       Types: {musoRequest.type.join(', ')}
                     </ThemedText>
-                    {musoRequest.childCredits && musoRequest.childCredits.length > 0 && (
+                    {musoRequest.childCredits?.length ? (
                       <ThemedText style={{ color: iconColor, marginTop: 2 }}>
                         Credits: {musoRequest.childCredits.join(', ')}
                       </ThemedText>
-                    )}
+                    ) : null}
                   </View>
                 )}
 
                 {/* Profiles */}
-                {musoResults.profiles?.items?.length > 0 && (
+                {musoData.profiles?.items?.length > 0 && (
                   <>
-                    <SectionHeader title="Profiles" total={musoResults.profiles.total} />
+                    <SectionHeader title="Profiles" total={musoData.profiles.total} />
                     <View style={{ gap: 10 }}>
-                      {musoResults.profiles.items.map((it: any, i: number) => (
+                      {musoData.profiles.items.map((it: any, i: number) => (
                         <MusoItemCard key={`prof-${i}`} item={it} kind="profile" />
                       ))}
                     </View>
@@ -302,11 +343,11 @@ export function QueryModal({
                 )}
 
                 {/* Organizations */}
-                {musoResults.organizations?.items?.length > 0 && (
+                {musoData.organizations?.items?.length > 0 && (
                   <>
-                    <SectionHeader title="Organizations" total={musoResults.organizations.total} />
+                    <SectionHeader title="Organizations" total={musoData.organizations.total} />
                     <View style={{ gap: 10 }}>
-                      {musoResults.organizations.items.map((it: any, i: number) => (
+                      {musoData.organizations.items.map((it: any, i: number) => (
                         <MusoItemCard key={`org-${i}`} item={it} kind="organization" />
                       ))}
                     </View>
@@ -314,11 +355,11 @@ export function QueryModal({
                 )}
 
                 {/* Albums */}
-                {musoResults.albums?.items?.length > 0 && (
+                {musoData.albums?.items?.length > 0 && (
                   <>
-                    <SectionHeader title="Albums" total={musoResults.albums.total} />
+                    <SectionHeader title="Albums" total={musoData.albums.total} />
                     <View style={{ gap: 10 }}>
-                      {musoResults.albums.items.map((it: any, i: number) => (
+                      {musoData.albums.items.map((it: any, i: number) => (
                         <MusoItemCard key={`alb-${i}`} item={it} kind="album" />
                       ))}
                     </View>
@@ -326,11 +367,11 @@ export function QueryModal({
                 )}
 
                 {/* Tracks */}
-                {musoResults.tracks?.items?.length > 0 && (
+                {musoData.tracks?.items?.length > 0 && (
                   <>
-                    <SectionHeader title="Tracks" total={musoResults.tracks.total} />
+                    <SectionHeader title="Tracks" total={musoData.tracks.total} />
                     <View style={{ gap: 10 }}>
-                      {musoResults.tracks.items.map((it: any, i: number) => (
+                      {musoData.tracks.items.map((it: any, i: number) => (
                         <MusoItemCard key={`trk-${i}`} item={it} kind="track" />
                       ))}
                     </View>
@@ -339,120 +380,102 @@ export function QueryModal({
               </View>
             )}
 
-            {/* --- REFERENCE MODE RENDER --- */}
+            {/* ---- REFERENCE MODE ---- */}
             {isRefsMode && !loading && (
               <View style={styles.refsContainer}>
-                {referenceResults!.map((ref, idx) => {
-                  return (
-                    <View
-                      key={idx}
-                      style={[
-                        styles.refsCard,
-                        {
-                          backgroundColor: backgroundColor === '#fff' ? '#F9F9F9' : '#2A2A2A',
-                          borderColor: iconColor + '33',
-                        },
-                      ]}
-                    >
-                      {/* Top line: title + credit */}
-                      <ThemedText type="subtitle" style={[styles.refsTitle, { color: textColor }]}>
-                        {ref.work_title}
+                {referenceResults!.map((ref, idx) => (
+                  <View
+                    key={idx}
+                    style={[
+                      styles.refsCard,
+                      {
+                        backgroundColor: backgroundColor === '#fff' ? '#F9F9F9' : '#2A2A2A',
+                        borderColor: iconColor + '33',
+                      },
+                    ]}
+                  >
+                    <ThemedText type="subtitle" style={[styles.refsTitle, { color: textColor }]}>
+                      {ref.work_title}
+                    </ThemedText>
+                    {!!ref.work_artist_or_credit && (
+                      <ThemedText style={[styles.refsCredit, { color: iconColor }]}>
+                        {ref.work_artist_or_credit}
                       </ThemedText>
-                      {!!ref.work_artist_or_credit && (
-                        <ThemedText style={[styles.refsCredit, { color: iconColor }]}>
-                          {ref.work_artist_or_credit}
-                        </ThemedText>
-                      )}
+                    )}
 
-                      {/* Badges row */}
-                      <View style={styles.refsBadgeRow}>
-                        {!!ref.relation && (
-                          <View style={[styles.badge, { borderColor: iconColor + '55' }]}>
-                            <Ionicons name="git-branch-outline" size={12} color={iconColor} />
-                            <ThemedText style={[styles.badgeText, { color: textColor }]}>
-                              {ref.relation}
-                            </ThemedText>
-                          </View>
-                        )}
-                        {!!ref.work_type && (
-                          <View style={[styles.badgeSecondary, { borderColor: iconColor + '33' }]}>
-                            <Ionicons name="pricetag-outline" size={12} color={iconColor} />
-                            <ThemedText style={[styles.badgeText, { color: textColor }]}>
-                              {ref.work_type}
-                            </ThemedText>
-                          </View>
-                        )}
-                        {!!ref.year && (
-                          <View style={[styles.badgeSecondary, { borderColor: iconColor + '33' }]}>
-                            <Ionicons name="calendar-outline" size={12} color={iconColor} />
-                            <ThemedText style={[styles.badgeText, { color: textColor }]}>
-                              {ref.year}
-                            </ThemedText>
-                          </View>
-                        )}
-                        {!!ref.episode && (
-                          <View style={[styles.badgeSecondary, { borderColor: iconColor + '33' }]}>
-                            <Ionicons name="tv-outline" size={12} color={iconColor} />
-                            <ThemedText style={[styles.badgeText, { color: textColor }]}>
-                              {ref.episode}
-                            </ThemedText>
-                          </View>
-                        )}
-                        {!!ref.timestamp && (
-                          <View style={[styles.badgeSecondary, { borderColor: iconColor + '33' }]}>
-                            <Ionicons name="time-outline" size={12} color={iconColor} />
-                            <ThemedText style={[styles.badgeText, { color: textColor }]}>
-                              {ref.timestamp}
-                            </ThemedText>
-                          </View>
-                        )}
+                    <View style={styles.refsBadgeRow}>
+                      {!!ref.relation && (
+                        <View style={[styles.badge, { borderColor: iconColor + '55' }]}>
+                          <Ionicons name="git-branch-outline" size={12} color={iconColor} />
+                          <ThemedText style={[styles.badgeText, { color: textColor }]}>{ref.relation}</ThemedText>
+                        </View>
+                      )}
+                      {!!ref.work_type && (
+                        <View style={[styles.badgeSecondary, { borderColor: iconColor + '33' }]}>
+                          <Ionicons name="pricetag-outline" size={12} color={iconColor} />
+                          <ThemedText style={[styles.badgeText, { color: textColor }]}>{ref.work_type}</ThemedText>
+                        </View>
+                      )}
+                      {!!ref.year && (
+                        <View style={[styles.badgeSecondary, { borderColor: iconColor + '33' }]}>
+                          <Ionicons name="calendar-outline" size={12} color={iconColor} />
+                          <ThemedText style={[styles.badgeText, { color: textColor }]}>{ref.year}</ThemedText>
+                        </View>
+                      )}
+                      {!!ref.episode && (
+                        <View style={[styles.badgeSecondary, { borderColor: iconColor + '33' }]}>
+                          <Ionicons name="tv-outline" size={12} color={iconColor} />
+                          <ThemedText style={[styles.badgeText, { color: textColor }]}>{ref.episode}</ThemedText>
+                        </View>
+                      )}
+                      {!!ref.timestamp && (
+                        <View style={[styles.badgeSecondary, { borderColor: iconColor + '33' }]}>
+                          <Ionicons name="time-outline" size={12} color={iconColor} />
+                          <ThemedText style={[styles.badgeText, { color: textColor }]}>{ref.timestamp}</ThemedText>
+                        </View>
+                      )}
+                    </View>
+
+                    {!!ref.note && (
+                      <ThemedText style={[styles.refsNote, { color: textColor }]}>{ref.note}</ThemedText>
+                    )}
+                    {!!ref.reasoning && (
+                      <View style={styles.refsReasoningRow}>
+                        <Ionicons name="bulb-outline" size={14} color={iconColor} />
+                        <ThemedText style={[styles.refsReasoning, { color: iconColor }]}>
+                          {ref.reasoning}
+                        </ThemedText>
                       </View>
+                    )}
 
-                      {/* Note / reasoning */}
-                      {!!ref.note && (
-                        <ThemedText style={[styles.refsNote, { color: textColor }]}>
-                          {ref.note}
-                        </ThemedText>
-                      )}
-                      {!!ref.reasoning && (
-                        <View style={styles.refsReasoningRow}>
-                          <Ionicons name="bulb-outline" size={14} color={iconColor} />
-                          <ThemedText style={[styles.refsReasoning, { color: iconColor }]}>
-                            {ref.reasoning}
+                    <View style={styles.refsEvidenceRow}>
+                      {!!ref.evidence_source && (
+                        <View style={[styles.badgeSecondary, { borderColor: iconColor + '33' }]}>
+                          <Ionicons name="newspaper-outline" size={12} color={iconColor} />
+                          <ThemedText style={[styles.badgeText, { color: textColor }]}>
+                            {ref.evidence_source}
                           </ThemedText>
                         </View>
                       )}
-
-                      {/* Evidence */}
-                      <View style={styles.refsEvidenceRow}>
-                        {!!ref.evidence_source && (
-                          <View style={[styles.badgeSecondary, { borderColor: iconColor + '33' }]}>
-                            <Ionicons name="newspaper-outline" size={12} color={iconColor} />
-                            <ThemedText style={[styles.badgeText, { color: textColor }]}>
-                              {ref.evidence_source}
-                            </ThemedText>
-                          </View>
-                        )}
-                      </View>
-
-                      {!!ref.evidence_url && (
-                        <TouchableOpacity
-                          onPress={() => Linking.openURL(ref.evidence_url!)}
-                          style={[styles.evidenceButton, { borderColor: tintColor, backgroundColor: backgroundColor }]}
-                        >
-                          <Ionicons name="open-outline" size={16} color={tintColor} />
-                          <ThemedText style={[styles.evidenceButtonText, { color: tintColor }]}>
-                            Open source
-                          </ThemedText>
-                        </TouchableOpacity>
-                      )}
                     </View>
-                  );
-                })}
+
+                    {!!ref.evidence_url && (
+                      <TouchableOpacity
+                        onPress={() => Linking.openURL(ref.evidence_url!)}
+                        style={[styles.evidenceButton, { borderColor: tintColor, backgroundColor: backgroundColor }]}
+                      >
+                        <Ionicons name="open-outline" size={16} color={tintColor} />
+                        <ThemedText style={[styles.evidenceButtonText, { color: tintColor }]}>
+                          Open source
+                        </ThemedText>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                ))}
               </View>
             )}
 
-            {/* --- FIND MODE RENDER --- */}
+            {/* ---- FIND MODE ---- */}
             {isFindMode && !loading && (
               <View style={styles.findContainer}>
                 {findResults!.map((res, idx) => {
@@ -504,18 +527,24 @@ export function QueryModal({
               </View>
             )}
 
-            {/* --- PLAYLIST MODE RENDER --- */}
+            {/* ---- PLAYLIST MODE ---- */}
             {!isFindMode && !isRefsMode && playlist && !loading && (
               <>
                 {matchingInProgress && (
                   <View style={styles.matchingProgressContainer}>
-                    <ThemedText style={styles.matchingProgressText}>
-                      🔍 Finding tracks on Spotify...
-                    </ThemedText>
+                    <ThemedText style={styles.matchingProgressText}>🔍 Finding tracks on Spotify...</ThemedText>
                   </View>
                 )}
 
-                <View style={[styles.playlistInfo, { backgroundColor: backgroundColor === '#fff' ? '#F9F9F9' : '#2A2A2A', borderColor: iconColor + '33' }]}>
+                <View
+                  style={[
+                    styles.playlistInfo,
+                    {
+                      backgroundColor: backgroundColor === '#fff' ? '#F9F9F9' : '#2A2A2A',
+                      borderColor: iconColor + '33',
+                    },
+                  ]}
+                >
                   <ThemedText type="subtitle" style={[styles.playlistName, { color: textColor }]}>
                     {playlist.name}
                   </ThemedText>
@@ -524,9 +553,7 @@ export function QueryModal({
                   </ThemedText>
                   <View style={styles.trackCount}>
                     <Ionicons name="musical-notes" size={16} color={iconColor} />
-                    <ThemedText style={styles.trackCountText}>
-                      {playlist.tracks.length} tracks
-                    </ThemedText>
+                    <ThemedText style={styles.trackCountText}>{playlist.tracks.length} tracks</ThemedText>
                     {trackMatches && (
                       <>
                         <ThemedText style={styles.trackCountSeparator}>•</ThemedText>
@@ -541,13 +568,24 @@ export function QueryModal({
 
                 <View style={styles.tracksContainer}>
                   {playlist.tracks.map((track: SuggestedTrack, index: number) => (
-                    <View key={index} style={[styles.trackItem, { backgroundColor, borderColor: iconColor + '33' }]}>
-                      <View style={[styles.trackNumber, { backgroundColor, borderColor: iconColor + '33' }]}>
+                    <View
+                      key={index}
+                      style={[
+                        styles.trackItem,
+                        { backgroundColor, borderColor: iconColor + '33' },
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.trackNumber,
+                          { backgroundColor, borderColor: iconColor + '33' },
+                        ]}
+                      >
                         <ThemedText style={[styles.trackNumberText, { color: textColor }]}>
                           {index + 1}
                         </ThemedText>
                       </View>
-                      
+
                       <View style={styles.trackInfo}>
                         <ThemedText type="defaultSemiBold" style={[styles.trackTitle, { color: textColor }]}>
                           {track.title}
@@ -558,9 +596,7 @@ export function QueryModal({
                         {track.reasoning && (
                           <View style={styles.reasoningContainer}>
                             <Ionicons name="bulb" size={12} color={iconColor} />
-                            <ThemedText style={styles.trackReasoning}>
-                              {track.reasoning}
-                            </ThemedText>
+                            <ThemedText style={styles.trackReasoning}>{track.reasoning}</ThemedText>
                           </View>
                         )}
                       </View>
@@ -575,7 +611,7 @@ export function QueryModal({
             )}
           </ScrollView>
 
-          {/* Footer — REFS MODE */}
+          {/* Footers */}
           {isRefsMode && !loading && (
             <View style={[styles.footer, { backgroundColor, borderTopColor: iconColor + '33' }]}>
               <TouchableOpacity
@@ -588,30 +624,37 @@ export function QueryModal({
             </View>
           )}
 
-          {/* Footer — FIND MODE */}
           {isFindMode && !loading && (
             <View style={[styles.footer, { backgroundColor, borderTopColor: iconColor + '33' }]}>
-              <TouchableOpacity style={[styles.actionButton, { backgroundColor, borderColor: iconColor + '66' }]} onPress={onClose}>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor, borderColor: iconColor + '66' }]}
+                onPress={onClose}
+              >
                 <Ionicons name="close" size={18} color={iconColor} />
                 <ThemedText style={[styles.actionButtonText, { color: textColor }]}>Close</ThemedText>
               </TouchableOpacity>
             </View>
           )}
 
-          {/* Footer — PLAYLIST MODE */}
           {!isFindMode && !isRefsMode && playlist && !loading && (
             <View style={[styles.footer, { backgroundColor, borderTopColor: iconColor + '33' }]}>
-              <TouchableOpacity style={[styles.actionButton, { backgroundColor, borderColor: iconColor + '66' }]} onPress={onClose}>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor, borderColor: iconColor + '66' }]}
+                onPress={onClose}
+              >
                 <Ionicons name="close" size={18} color={iconColor} />
                 <ThemedText style={[styles.actionButtonText, { color: textColor }]}>Close</ThemedText>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={[
-                  styles.actionButton, 
+                  styles.actionButton,
                   styles.primaryButton,
                   { backgroundColor: textColor, borderColor: textColor },
-                  (isCreatingPlaylist || matchingInProgress || !trackMatches) && [styles.disabledButton, { backgroundColor: iconColor, borderColor: iconColor }]
+                  (isCreatingPlaylist || matchingInProgress || !trackMatches) && [
+                    styles.disabledButton,
+                    { backgroundColor: iconColor, borderColor: iconColor },
+                  ],
                 ]}
                 onPress={handleCreatePlaylist}
                 disabled={isCreatingPlaylist || matchingInProgress || !trackMatches}
@@ -649,7 +692,6 @@ export function QueryModal({
             </View>
           )}
 
-          {/* Footer — MUSO */}
           {isMusoMode && !loading && (
             <View style={[styles.footer, { backgroundColor, borderTopColor: iconColor + '33' }]}>
               <TouchableOpacity
@@ -667,7 +709,7 @@ export function QueryModal({
   );
 }
 
-const { width, height } = Dimensions.get('window');
+const { height } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   modalOverlay: {
@@ -708,8 +750,8 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
   },
-  
-  // Loading Styles
+
+  // Loading
   loadingContainer: {
     alignItems: 'center',
     paddingVertical: 60,
@@ -725,7 +767,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
 
-  // Error Styles
+  // Error
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -748,28 +790,12 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 
-  // --- REFS styles ---
-  refsContainer: {
-    gap: 12,
-  },
-  refsCard: {
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 16,
-  },
-  refsTitle: {
-    marginBottom: 4,
-  },
-  refsCredit: {
-    fontSize: 13,
-    marginBottom: 8,
-  },
-  refsBadgeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 10,
-  },
+  // REFS styles
+  refsContainer: { gap: 12 },
+  refsCard: { borderRadius: 12, borderWidth: 1, padding: 16 },
+  refsTitle: { marginBottom: 4 },
+  refsCredit: { fontSize: 13, marginBottom: 8 },
+  refsBadgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -789,34 +815,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     opacity: 0.9,
   },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  refsNote: {
-    marginBottom: 8,
-    lineHeight: 18,
-  },
-  refsReasoningRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 6,
-    marginBottom: 8,
-  },
-  refsReasoning: {
-    fontSize: 12,
-    color: '#888',
-    fontStyle: 'italic',
-    lineHeight: 16,
-    flex: 1,
-  },
-  refsEvidenceRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 4,
-    marginBottom: 10,
-  },
+  badgeText: { fontSize: 12, fontWeight: '600' },
+  refsNote: { marginBottom: 8, lineHeight: 18 },
+  refsReasoningRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginBottom: 8 },
+  refsReasoning: { fontSize: 12, color: '#888', fontStyle: 'italic', lineHeight: 16, flex: 1 },
+  refsEvidenceRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4, marginBottom: 10 },
   evidenceButton: {
     flexDirection: 'row',
     alignSelf: 'flex-start',
@@ -827,86 +830,31 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
   },
-  evidenceButtonText: {
-    fontWeight: '700',
-    fontSize: 12,
-  },
+  evidenceButtonText: { fontWeight: '700', fontSize: 12 },
 
-  // --- FIND styles ---
-  findContainer: {
-    gap: 12,
-  },
-  findCard: {
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 16,
-  },
-  findAnswer: {
-    marginBottom: 8,
-  },
-  findReasoningRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 6,
-    marginBottom: 10,
-  },
-  findReasoning: {
-    fontSize: 13,
-    fontStyle: 'italic',
-    lineHeight: 18,
-    flex: 1,
-  },
-  contextToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 8,
-  },
-  contextToggleText: {
-    fontWeight: '600',
-    fontSize: 13,
-  },
-  findContext: {
-    borderTopWidth: 1,
-    paddingTop: 10,
-    marginTop: 6,
-  },
+  // FIND styles
+  findContainer: { gap: 12 },
+  findCard: { borderRadius: 12, borderWidth: 1, padding: 16 },
+  findAnswer: { marginBottom: 8 },
+  findReasoningRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginBottom: 10 },
+  findReasoning: { fontSize: 13, fontStyle: 'italic', lineHeight: 18, flex: 1 },
+  contextToggle: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 },
+  contextToggleText: { fontWeight: '600', fontSize: 13 },
+  findContext: { borderTopWidth: 1, paddingTop: 10, marginTop: 6 },
   findContextText: {
     fontSize: 13,
     lineHeight: 18,
   },
 
-  // Playlist Info Styles
-  playlistInfo: {
-    marginBottom: 24,
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  playlistName: {
-    marginBottom: 8,
-  },
-  playlistDescription: {
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  trackCount: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  trackCountText: {
-    fontWeight: '500',
-  },
-  trackCountSeparator: {
-    marginHorizontal: 4,
-    fontSize: 12,
-  },
+  // Playlist styles
+  playlistInfo: { marginBottom: 24, padding: 16, borderRadius: 12, borderWidth: 1 },
+  playlistName: { marginBottom: 8 },
+  playlistDescription: { lineHeight: 20, marginBottom: 12 },
+  trackCount: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  trackCountText: { fontWeight: '500' },
+  trackCountSeparator: { marginHorizontal: 4, fontSize: 12 },
 
-  // Tracks Styles
-  tracksContainer: {
-    gap: 12,
-  },
+  tracksContainer: { gap: 12 },
   trackItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -928,39 +876,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 12,
   },
-  trackNumberText: {
-    fontWeight: 'bold',
-    fontSize: 12,
-  },
-  trackInfo: {
-    flex: 1,
-  },
-  trackTitle: {
-    marginBottom: 2,
-    lineHeight: 18,
-  },
-  trackArtist: {
-    marginBottom: 6,
-    fontSize: 14,
-  },
-  reasoningContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 6,
-    marginTop: 4,
-  },
-  trackReasoning: {
-    fontSize: 12,
-    color: '#888',
-    fontStyle: 'italic',
-    lineHeight: 16,
-    flex: 1,
-  },
-  trackAction: {
-    padding: 4,
-  },
+  trackNumberText: { fontWeight: 'bold', fontSize: 12 },
+  trackInfo: { flex: 1 },
+  trackTitle: { marginBottom: 2, lineHeight: 18 },
+  trackArtist: { marginBottom: 6, fontSize: 14 },
+  reasoningContainer: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 4 },
+  trackReasoning: { fontSize: 12, color: '#888', fontStyle: 'italic', lineHeight: 16, flex: 1 },
+  trackAction: { padding: 4 },
 
-  // Footer Styles
+  // Footer
   footer: {
     flexDirection: 'row',
     padding: 32,
@@ -980,21 +904,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 6,
   },
-  primaryButton: {
-    // dynamic
-  },
-  actionButtonText: {
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  primaryButtonText: {
-    color: 'white',
-  },
-  disabledButton: {
-    // dynamic
-  },
+  primaryButton: {},
+  actionButtonText: { fontWeight: '600', fontSize: 14 },
+  primaryButtonText: { color: 'white' },
+  disabledButton: {},
 
-  // Matching Progress Styles
+  // Matching progress
   matchingProgressContainer: {
     padding: 16,
     backgroundColor: '#F8F9FA',
@@ -1002,11 +917,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     alignItems: 'center',
   },
-  matchingProgressText: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
-  },
+  matchingProgressText: { fontSize: 14, color: '#666', fontWeight: '500' },
+
+  // Muso sections
   musoSectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1014,29 +927,11 @@ const styles = StyleSheet.create({
     marginTop: 6,
     marginBottom: 6,
   },
-  musoSectionTitle: {
-    fontWeight: '700',
-  },
-  musoSectionTotal: {
-    fontSize: 12,
-    fontWeight: '600',
-    opacity: 0.8,
-  },
-  musoCard: {
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 14,
-  },
-  musoCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  musoActionsRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 10,
-  },
+  musoSectionTitle: { fontWeight: '700' },
+  musoSectionTotal: { fontSize: 12, fontWeight: '600', opacity: 0.8 },
+  musoCard: { borderRadius: 12, borderWidth: 1, padding: 14 },
+  musoCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  musoActionsRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
 });
 
 export default QueryModal;
