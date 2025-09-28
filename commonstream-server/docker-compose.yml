@@ -1,0 +1,49 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16
+    container_name: commonstream-postgres
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-commonstream}
+      POSTGRES_USER: ${POSTGRES_USER:-cs_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cs_pass}
+      TZ: UTC
+      LANG: C.UTF-8
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cs_user} -d ${POSTGRES_DB:-commonstream}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - csnet
+
+  # Optional DB UI
+  pgadmin:
+    image: dpage/pgadmin4:8
+    container_name: commonstream-pgadmin
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@commonstream.local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin123}
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    networks:
+      - csnet
+
+networks:
+  csnet:
+
+volumes:
+  pgdata:
+  pgadmin-data:
