@@ -2,7 +2,7 @@ export const siteDetails = {
     siteName: 'CommonStream',
     siteUrl: 'https://CommonStream.vercel.app/',
     metadata: {
-        title: 'CommonStream - Next.js and Tailwind CSS Landing Page Template',
+        title: 'CommonStream - NextGen AI-Assisted Music & Audio Search',
         description: 'CommonStream empowers artist & listeners with cutting-edge search solutions to drive creativity, discovery, and efficiency.',
     },
     language: 'en-us',
