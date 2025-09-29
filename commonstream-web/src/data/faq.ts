@@ -2,24 +2,29 @@ import { IFAQ } from "@/types";
 import { siteDetails } from "./siteDetails";
 
 export const faqs: IFAQ[] = [
-    {
-        question: `Is ${siteDetails.siteName} secure?`,
-        answer: 'Absolutely. We use bank-level encryption to protect your data and never store your login information. Plus, our biometric authentication adds an extra layer of security.',
-    },
-    {
-        question: `Can I use ${siteDetails.siteName} on multiple devices?`,
-        answer: 'Absolutely! Your Finwise account syncs seamlessly across all your devices - smartphone, tablet, and computer.',
-    },
-    {
-        question: 'Can I connect all my bank accounts?',
-        answer: `Yes! ${siteDetails.siteName} supports connections with over 10,000 financial institutions worldwide. Simply log in through our secure portal to link your accounts.`
-    },
-    {
-        question: 'Do I need any financial expertise to use the investing features?',
-        answer: 'Not at all! Our expert-curated portfolios and educational resources make investing accessible to everyone, regardless of experience level.',
-    },
-    {
-        question: 'What if I need help using the app?',
-        answer: 'Our dedicated support team is available 24/7 via chat or email. Plus, we offer extensive in-app tutorials and a comprehensive knowledge base to help you make the most of Finwise.'
-    }
+  {
+    question: `Is ${siteDetails.siteName} secure?`,
+    answer:
+      "Yes. We use industry-standard encryption and OAuth for account linking. We never store your streaming or marketplace passwords, and you can revoke access at any time."
+  },
+  {
+    question: "How do deeplinks work?",
+    answer:
+      "When you find a track, we provide one-tap links to your preferred services—streaming platforms or digital marketplaces—so you choose how to listen or support the artist. No platform lock-in."
+  },
+  {
+    question: "Do I need a paid streaming account to use it?",
+    answer:
+      "No. You can search, build a taste profile, and save items without linking an account. Playback happens on any connected service; seamless in-app listening is on our roadmap."
+  },
+  {
+    question: "How are recommendations generated?",
+    answer:
+      "Our AI blends your taste profile with community tags and context (mood, scenes, adjacent media). Results include a brief “why this” explanation, and you can steer them with custom prompts."
+  },
+  {
+    question: "What data does CommonStream collect?",
+    answer:
+      "Only minimal, privacy-respecting analytics (e.g., feature usage) to improve the product. Metrics are aggregated/anonymized, and you can request or delete your data at any time."
+  }
 ];

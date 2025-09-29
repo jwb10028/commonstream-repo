@@ -1,13 +1,12 @@
 import Hero from "@/components/Hero";
-import Testimonials from "@/components/Testimonials";
-import Pricing from "@/components/Pricing/Pricing";
 import FAQ from "@/components/FAQ";
 import Logos from "@/components/Logos";
 import Benefits from "@/components/Benefits/Benefits";
 import Container from "@/components/Container";
 import Section from "@/components/Section";
-import Stats from "@/components/Stats";
 import CTA from "@/components/CTA";
+import Mission from "@/components/Mission/Mission";
+import Roadmap from "@/components/Roadmap/Roadmap";
 
 const HomePage: React.FC = () => {
   return (
@@ -18,24 +17,24 @@ const HomePage: React.FC = () => {
         <Benefits />
 
         <Section
-          id="pricing"
-          title="Pricing"
-          description="Simple, transparent pricing. No surprises."
+          id="Mission"
+          title="Mission"
+          description="Democratizing the artist & music discovery process."
         >
-          <Pricing />
+          <Mission/>
         </Section>
 
         <Section
-          id="testimonials"
-          title="What Our Clients Say"
-          description="Hear from those who have partnered with us."
+          id="Roadmap"
+          title="Roadmap"
+          description="Visualizing the development & release schedule."
         >
-          <Testimonials />
+          <Roadmap/>
         </Section>
 
         <FAQ />
 
-        <Stats />
+        {/*<Stats />*/}
         
         <CTA />
       </Container>

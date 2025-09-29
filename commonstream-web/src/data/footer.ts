@@ -7,23 +7,23 @@ export const footerDetails: {
     telephone: string;
     socials: ISocials;
 } = {
-    subheading: "Empowering businesses with cutting-edge financial technology solutions.",
+    subheading: "Empowering businesses with cutting-edge audio & music discovery solutions.",
     quickLinks: [
         {
             text: "Features",
             url: "#features"
         },
         {
-            text: "Pricing",
+            text: "Mission",
             url: "#pricing"
         },
         {
-            text: "Testimonials",
+            text: "Roadmap",
             url: "#testimonials"
         }
     ],
-    email: 'address@yoursite.com',
-    telephone: '+1 (123) 456-7890',
+    email: 'help@CommonStream.com',
+    telephone: '+1 (111) 111-1111',
     socials: {
         // github: 'https://github.com',
         // x: 'https://twitter.com/x',
