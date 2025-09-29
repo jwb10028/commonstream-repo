@@ -1,5 +1,5 @@
 export const heroDetails = {
-    heading: 'Smart, Secure, Simple Financial Management',
-    subheading: 'From effortless budgeting to real-time investment insights, Finwise puts you in control of your money like never before',
+    heading: 'Discover Music on Your Terms',
+    subheading: 'CommonStream puts search and discovery back in the hands of artists and listeners — transparent, community-driven, and free from Pay-for-Premium services.',
     centerImageSrc: '/images/hero-mockup.webp',
 }

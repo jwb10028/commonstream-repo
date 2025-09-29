@@ -1,9 +1,9 @@
 export const siteDetails = {
-    siteName: 'Finwise',
-    siteUrl: 'https://finwise-omega.vercel.app/',
+    siteName: 'CommonStream',
+    siteUrl: 'https://CommonStream.vercel.app/',
     metadata: {
-        title: 'Finwise - Next.js and Tailwind CSS Landing Page Template',
-        description: 'Finwise empowers businesses with cutting-edge technology solutions to drive success and efficiency.',
+        title: 'CommonStream - Next.js and Tailwind CSS Landing Page Template',
+        description: 'CommonStream empowers artist & listeners with cutting-edge search solutions to drive creativity, discovery, and efficiency.',
     },
     language: 'en-us',
     locale: 'en-US',

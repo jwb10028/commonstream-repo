@@ -4,69 +4,69 @@ import { IBenefit } from "@/types"
 
 export const benefits: IBenefit[] = [
     {
-        title: "Smart Budgeting",
-        description: "Take the guesswork out of managing your money. Our AI-powered budgeting tool adapts to your lifestyle and helps you stay on track.",
+        title: "AI-Assisted Discovery",
+        description: "Take the guesswork out of finding your next favorite track. CommonStream’s AI-powered search adapts to your taste and helps you uncover music in ways traditional platforms can’t.",
         bullets: [
             {
-                title: "Intelligent Categorization",
-                description: "Automatically sorts your transactions for crystal-clear insights.",
+                title: "Intelligent Search",
+                description: "Find songs, artists, or genres through natural queries — even describe a vibe, and let the AI surface what matches.",
                 icon: <FiBarChart2 size={26} />
             },
             {
-                title: "Customizable Goals",
-                description: "Set and track financial objectives that matter to you.",
+                title: "Contextual Recommendations",
+                description: "Explore new sounds based on mood, scene, or community-driven tags instead of generic algorithmic pushes.",
                 icon: <FiTarget size={26} />
             },
             {
-                title: "Predictive Analysis",
-                description: "Get ahead of your finances with spending forecasts and alerts.",
+                title: "Transparent Results",
+                description: "Understand why media appears in your feed with clear explanations — no hidden boosts or pay-to-play surfacing.",
                 icon: <FiTrendingUp size={26} />
             }
         ],
         imageSrc: "/images/mockup-1.webp"
     },
     {
-        title: "Seamless Investing",
-        description: "Start building wealth today, no financial degree required. Finwise makes investing accessible and straightforward.",
+        title: "Seamless Access",
+        description: "Discover music without limits. CommonStream connects you directly to streaming platforms and digital marketplaces, giving you the choice of how to listen — and how to support the artists you love.",
         bullets: [
             {
-                title: "Micro-Investing",
-                description: "Begin with as little as $1 and watch your money grow.",
+                title: "Universal Deeplinks",
+                description: "Jump straight from discovery into your preferred platform — Spotify, Apple Music, Tidal, Bandcamp, and more.",
                 icon: <FiDollarSign size={26} />
             },
             {
-                title: "Expert Portfolios",
-                description: "Choose from investment strategies tailored to your risk tolerance.",
+                title: "Artist-First Options",
+                description: "Explore links to digital marketplaces so you can buy, download, or support creators directly.",
                 icon: <FiBriefcase size={26} />
             },
             {
-                title: "Real-Time Performance",
-                description: "Track your investments with easy-to-understand metrics and visuals.",
+                title: "Freedom of Choice",
+                description: "No platform lock-in. You decide where and how to experience the music you discover.",
                 icon: <FiPieChart size={26} />
             }
         ],
         imageSrc: "/images/mockup-2.webp"
     },
     {
-        title: "Bank-Grade Security",
-        description: "Your financial data deserves the best protection. Rest easy knowing Finwise employs cutting-edge security measures.",
+        title: "Tailored Exploration",
+        description: "Go beyond generic recommendations. CommonStream builds a rich, multi-dimensional taste profile that captures the full scope of your interests and empowers you to shape your search experience.",
         bullets: [
             {
-                title: "Military-Grade Encryption",
-                description: "Your information is safeguarded with the highest level of encryption.",
+                title: "Context-Rich Profiles",
+                description: "Define your tastes across music, artists, genres — plus books, films, and TV — to create a discovery graph that’s truly yours.",
                 icon: <FiLock size={26} />
             },
             {
-                title: "Biometric Authentication",
-                description: "Access your account securely with fingerprint or facial recognition.",
+                title: "Adaptive Search",
+                description: "Every query is filtered through your evolving profile, ensuring results feel personal, not random.",
                 icon: <FiUser size={26} />
             },
             {
-                title: "Real-Time Fraud Detection",
-                description: "Our system constantly monitors for suspicious activity to keep your money safe.",
+                title: "Custom Prompts",
+                description: "Contour how the system responds by adding your own preferences and directives, giving you control over the AI’s voice in discovery.",
                 icon: <FiShield size={26} />
             }
         ],
-        imageSrc: "/images/mockup-1.webp"
+        imageSrc: "/images/mockup-3.png"
     },
 ]
