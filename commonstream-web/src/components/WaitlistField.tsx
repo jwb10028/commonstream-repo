@@ -21,7 +21,8 @@ const WaitlistField: React.FC<Props> = ({
   );
   const [error, setError] = React.useState<string | null>(null);
 
-  const onSubmit = (e: React.FormEvent) => {
+  // inside WaitlistField.tsx
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     if (!ok) {
@@ -29,9 +30,20 @@ const WaitlistField: React.FC<Props> = ({
       setStatus("error");
       return;
     }
-    setError(null);
-    setStatus("success");
-    // TODO: hook to /api/waitlist (Vercel Function / Supabase, etc.)
+
+    try {
+      const res = await fetch("/api/waitlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, source: "cta" }),
+      });
+      if (!res.ok) throw new Error("Bad response");
+      setStatus("success");
+      setError(null);
+    } catch {
+      setStatus("error");
+      setError("Something went wrong. Try again?");
+    }
   };
 
   return (
