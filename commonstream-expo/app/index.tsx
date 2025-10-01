@@ -53,11 +53,14 @@ export default function AuthScreen() {
   };
 
   const hasDisplayName = !!profile?.displayName?.trim();
+  
 
+  // TODO: Replace with backend authentication
   const handleContinue = () => {
     if (hasDisplayName) {
       router.replace('/home');
     } else {
+      // Name modal should instead be an authentication modal
       setNameModalOpen(true);
     }
   };
