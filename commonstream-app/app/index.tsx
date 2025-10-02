@@ -1,5 +1,6 @@
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import Glow from '@/components/ui/glow';
 import { router } from 'expo-router';
 import React from 'react';
 import { Pressable, StyleSheet } from 'react-native';
@@ -7,6 +8,7 @@ import { Pressable, StyleSheet } from 'react-native';
 export default function HomeScreen() {
   return (
     <ThemedView style={styles.container}>
+      <Glow/>
       <ThemedText type="title" style={styles.text}>
         Hello Commonstream
       </ThemedText>
