@@ -8,17 +8,16 @@ import { Pressable, StyleSheet } from 'react-native';
 export default function HomeScreen() {
   return (
     <ThemedView style={styles.container}>
-      <Glow/>
-      <ThemedText type="title" style={styles.text}>
-        CommonStream
-      </ThemedText>
+      <ThemedView style={styles.centerContent}>
+        <Glow/>
+        <ThemedText type="title" style={styles.text}>
+          CommonStream
+        </ThemedText>
+      </ThemedView>
       
-      <Pressable 
-        style={styles.button}
-        onPress={() => router.push('/(screens)/home' as any)}
-      >
+      <Pressable style={styles.button} onPress={() => router.push('/(screens)/home' as any)}>
         <ThemedText style={styles.buttonText}>
-          Go to Home
+          Register & Login
         </ThemedText>
       </Pressable>
     </ThemedView>
@@ -28,6 +27,10 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    position: 'relative',
+  },
+  centerContent: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -35,11 +38,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   button: {
+    position: 'absolute',
+    bottom: 60,
+    left: 50,
     backgroundColor: '#ffffffff',
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 8,
-    marginTop: 20,
+    width: 300,
   },
   buttonText: {
     color: 'black',
