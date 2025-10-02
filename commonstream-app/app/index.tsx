@@ -10,7 +10,7 @@ export default function HomeScreen() {
     <ThemedView style={styles.container}>
       <Glow/>
       <ThemedText type="title" style={styles.text}>
-        Hello Commonstream
+        CommonStream
       </ThemedText>
       
       <Pressable 
@@ -35,14 +35,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   button: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#ffffffff',
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 8,
     marginTop: 20,
   },
   buttonText: {
-    color: 'white',
+    color: 'black',
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
